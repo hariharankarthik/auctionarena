@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loginUrlWithNext } from "@/lib/safe-path";
 import { LobbyView } from "@/components/room/LobbyView";
 
 export default async function LobbyPage({ params }: { params: Promise<{ roomId: string }> }) {
@@ -8,7 +9,7 @@ export default async function LobbyPage({ params }: { params: Promise<{ roomId: 
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect(loginUrlWithNext(`/room/${roomId}/lobby`));
 
   const { data: room, error } = await supabase.from("auction_rooms").select("*").eq("id", roomId).single();
   if (error || !room) notFound();

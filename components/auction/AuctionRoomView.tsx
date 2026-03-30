@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "framer-motion";
 import { toast } from "sonner";
 import { useAuctionRoom } from "@/hooks/useAuctionRoom";
 import { useTimer } from "@/hooks/useTimer";
@@ -37,6 +38,7 @@ export function AuctionRoomView({
   const increments = cfg.bidIncrements ?? [5, 10, 20, 25, 50, 100];
   const isHost = room?.host_id === userId;
   const { timeLeft, start, reset } = useTimer(roomId, isHost, duration);
+  const reduceMotion = useReducedMotion();
 
   const [player, setPlayer] = useState<PlayerRow | null>(null);
   const [mySquad, setMySquad] = useState<PlayerRow[]>([]);
@@ -129,29 +131,51 @@ export function AuctionRoomView({
   }, [timeLeft]);
 
   if (loading || !room) {
-    return <p className="p-6 text-neutral-400">Loading auction…</p>;
+    return (
+      <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
+        <div className="aa-skeleton h-8 w-1/2 max-w-xs rounded-lg" />
+        <div className="aa-skeleton h-48 w-full rounded-2xl" />
+        <div className="aa-skeleton h-24 w-full rounded-xl" />
+      </div>
+    );
   }
 
   if (room.status !== "live") {
-    return <p className="p-6 text-neutral-400">Redirecting…</p>;
+    return (
+      <div className="flex min-h-[30vh] items-center justify-center p-8 text-sm text-neutral-500">
+        Taking you back to the lobby…
+      </div>
+    );
   }
 
   return (
-    <div className="relative mx-auto max-w-6xl gap-6 p-4 lg:grid lg:grid-cols-[1.1fr_0.9fr]">
+    <div className="relative mx-auto max-w-6xl gap-6 p-4 sm:p-6 lg:grid lg:grid-cols-[1.08fr_0.92fr] lg:gap-8">
       <SoldOverlay open={soldOverlay.open} label={soldOverlay.label} />
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold">{room.name}</h1>
-            <p className="text-sm text-neutral-500">Live auction</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-400/90">On the block</p>
+            <h1 className="mt-1 text-xl font-bold text-white sm:text-2xl">{room.name}</h1>
           </div>
-          <Badge variant="live">LIVE</Badge>
+          <Badge variant="live" className="animate-pulse px-3 py-1 text-xs motion-reduce:animate-none">
+            LIVE
+          </Badge>
         </div>
         <PlayerCard player={player} />
-        <div className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-4">
-          <p className="text-sm text-neutral-400">Current bid</p>
-          <p className="text-3xl font-semibold text-emerald-300">{formatCurrencyLakhsToCr(room.current_bid)}</p>
-          <p className="text-sm text-neutral-400">Leading: {currentBidderName}</p>
+        <div className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/40 to-neutral-950/90 p-5 ring-1 ring-emerald-500/10">
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Current bid</p>
+          <motion.p
+            key={room.current_bid}
+            initial={reduceMotion ? undefined : { scale: 1.04, opacity: 0.85 }}
+            animate={reduceMotion ? undefined : { scale: 1, opacity: 1 }}
+            transition={reduceMotion ? undefined : { type: "spring", stiffness: 380, damping: 22 }}
+            className="mt-1 text-3xl font-bold tabular-nums text-emerald-300 sm:text-4xl"
+          >
+            {formatCurrencyLakhsToCr(room.current_bid)}
+          </motion.p>
+          <p className="mt-2 text-sm text-neutral-400">
+            Leading: <span className="font-medium text-neutral-200">{currentBidderName}</span>
+          </p>
         </div>
         <TimerDisplay seconds={timeLeft} />
         {isHost ? (
@@ -192,7 +216,7 @@ export function AuctionRoomView({
           </div>
         ) : null}
       </div>
-      <div className="mt-6 space-y-4 lg:mt-0">
+      <div className="mt-8 space-y-4 lg:mt-0">
         <PurseTracker teams={teams} sportId={room.sport_id} />
         {room.sport_id && myTeamId ? (
           <SquadTracker sportId={room.sport_id} players={mySquad} teamLabel="Your squad" />

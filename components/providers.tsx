@@ -6,7 +6,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}
-      <Toaster richColors position="top-center" />
+      <Toaster richColors theme="dark" position="top-center" closeButton className="font-sans" />
     </>
   );
 }

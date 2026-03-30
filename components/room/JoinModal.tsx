@@ -43,7 +43,9 @@ export function JoinModal() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">Join room</Button>
+        <Button variant="outline" size="lg" className="h-11 px-6 font-semibold">
+          Join with code
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

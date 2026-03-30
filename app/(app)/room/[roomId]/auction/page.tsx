@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loginUrlWithNext } from "@/lib/safe-path";
 import { AuctionRoomView } from "@/components/auction/AuctionRoomView";
 
 export default async function AuctionPage({ params }: { params: Promise<{ roomId: string }> }) {
@@ -8,7 +9,7 @@ export default async function AuctionPage({ params }: { params: Promise<{ roomId
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect(loginUrlWithNext(`/room/${roomId}/auction`));
 
   const { data: room, error } = await supabase.from("auction_rooms").select("id").eq("id", roomId).single();
   if (error || !room) notFound();

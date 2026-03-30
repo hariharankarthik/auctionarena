@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuctionRoom } from "@/hooks/useAuctionRoom";
 import { Button } from "@/components/ui/button";
 import { TeamSlot } from "./TeamSlot";
 import type { AuctionTeam } from "@/lib/sports/types";
+import { Copy, Link2, PartyPopper } from "lucide-react";
 
 export function LobbyView({
   roomId,
@@ -28,12 +30,24 @@ export function LobbyView({
     return `${window.location.origin}/room/${roomId}/lobby`;
   }, [roomId]);
 
+  const readyCount = teams.filter((t) => t.is_ready).length;
   const allReady = teams.length >= 2 && teams.every((t) => t.is_ready);
   const canStart = isHost && allReady && room?.status === "lobby";
 
+  useEffect(() => {
+    if (!room || loading) return;
+    if (room.status === "live") {
+      router.replace(`/room/${roomId}/auction`);
+      return;
+    }
+    if (room.status === "completed") {
+      router.replace(`/room/${roomId}/results`);
+    }
+  }, [room, loading, roomId, router]);
+
   async function toggleReady(next: boolean) {
     if (!myTeamId) {
-      toast.error("You need a team in this room");
+      toast.error("Join the room with a team first");
       return;
     }
     const res = await fetch("/api/room/ready", {
@@ -65,73 +79,130 @@ export function LobbyView({
   }
 
   if (loading || !room) {
-    return <p className="p-6 text-neutral-400">Loading lobby…</p>;
+    return (
+      <div className="mx-auto max-w-2xl space-y-6 p-5 sm:p-8">
+        <div className="aa-skeleton h-9 w-2/3 max-w-sm" />
+        <div className="aa-skeleton h-4 w-1/3" />
+        <div className="aa-skeleton mt-8 h-24 w-full rounded-2xl" />
+        <div className="space-y-3">
+          <div className="aa-skeleton h-14 w-full rounded-xl" />
+          <div className="aa-skeleton h-14 w-full rounded-xl" />
+        </div>
+      </div>
+    );
   }
 
-  if (room.status === "live") {
-    router.replace(`/room/${roomId}/auction`);
-    return null;
-  }
-
-  if (room.status === "completed") {
-    router.replace(`/room/${roomId}/results`);
-    return null;
+  if (room.status === "live" || room.status === "completed") {
+    return (
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 p-8 text-center">
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-neutral-700 border-t-emerald-500 motion-reduce:animate-none" aria-hidden />
+        <p className="text-sm text-neutral-400">Taking you to the {room.status === "live" ? "live auction" : "results"}…</p>
+      </div>
+    );
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-4">
+    <div className="mx-auto max-w-2xl space-y-8 p-4 sm:p-8">
       <div>
-        <h1 className="text-2xl font-semibold">{room.name}</h1>
-        <p className="text-sm text-neutral-500">Lobby · code {inviteCode}</p>
-        <div className="mt-2 flex flex-wrap gap-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-500/90">Pre-match lobby</p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">{room.name}</h1>
+        <p className="mt-2 text-sm text-neutral-400">Invite friends, pick colors, get everyone ready — then go live.</p>
+      </div>
+
+      <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-b from-emerald-950/30 to-neutral-950/60 p-5 sm:p-6">
+        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Invite code</p>
+        <p className="aa-invite-code mt-3 text-center font-mono text-2xl text-emerald-300 sm:text-3xl">{inviteCode}</p>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             size="sm"
+            className="gap-2"
             onClick={async () => {
               await navigator.clipboard.writeText(inviteCode);
               toast.success("Code copied");
             }}
           >
+            <Copy className="h-3.5 w-3.5" aria-hidden />
             Copy code
           </Button>
           <Button
             type="button"
             variant="outline"
             size="sm"
+            className="gap-2"
             onClick={async () => {
               await navigator.clipboard.writeText(appUrl);
-              toast.success("Link copied");
+              toast.success("Invite link copied");
             }}
           >
-            Copy invite link
+            <Link2 className="h-3.5 w-3.5" aria-hidden />
+            Copy link
           </Button>
         </div>
       </div>
-      <div className="space-y-2">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-neutral-500">Teams</h2>
-        {teams.map((t: AuctionTeam) => (
-          <TeamSlot key={t.id} team={t} />
-        ))}
+
+      <div>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">Teams</h2>
+          <span className="text-xs text-neutral-500">
+            {readyCount}/{teams.length} ready
+          </span>
+        </div>
+        <ul className="space-y-3">
+          <AnimatePresence initial={false}>
+            {teams.map((t: AuctionTeam) => (
+              <motion.li
+                key={t.id}
+                layout
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <TeamSlot team={t} />
+              </motion.li>
+            ))}
+          </AnimatePresence>
+        </ul>
       </div>
+
       {myTeamId ? (
-        <div className="flex gap-2">
-          <Button type="button" onClick={() => void toggleReady(true)}>
-            Mark ready
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={() => void toggleReady(true)} className="gap-2">
+            <PartyPopper className="h-4 w-4" aria-hidden />
+            I&apos;m ready
           </Button>
           <Button type="button" variant="outline" onClick={() => void toggleReady(false)}>
-            Not ready
+            Not ready yet
           </Button>
         </div>
       ) : (
-        <p className="text-sm text-neutral-500">Join this room with a team to toggle ready.</p>
+        <p className="rounded-xl border border-dashed border-neutral-700 bg-neutral-950/40 px-4 py-3 text-sm text-neutral-500">
+          Join this room with a team to flip your ready switch.
+        </p>
       )}
+
       {isHost ? (
-        <Button type="button" disabled={!canStart || starting} onClick={() => void startAuction()}>
-          Start auction
-        </Button>
-      ) : null}
-      {!isHost ? <p className="text-xs text-neutral-600">Waiting for host to start when everyone is ready.</p> : null}
+        <div className="rounded-2xl border border-neutral-800 bg-neutral-950/50 p-5">
+          <p className="text-sm font-medium text-white">Host controls</p>
+          <p className="mt-1 text-xs text-neutral-500">
+            {allReady
+              ? "Everyone’s in — hit start when the room feels electric."
+              : `Need at least 2 teams and all ready (${teams.length} team${teams.length === 1 ? "" : "s"}).`}
+          </p>
+          <Button
+            type="button"
+            className="mt-4 h-11 w-full text-base sm:w-auto sm:min-w-[220px]"
+            disabled={!canStart || starting}
+            onClick={() => void startAuction()}
+          >
+            {starting ? "Starting…" : "Start live auction"}
+          </Button>
+        </div>
+      ) : (
+        <p className="text-center text-sm text-neutral-500">When the host starts, you’ll jump into the live block.</p>
+      )}
     </div>
   );
 }

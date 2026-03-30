@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { safeNextPath } from "@/lib/safe-path";
 
 const PROTECTED_PREFIXES = ["/dashboard", "/room", "/practice", "/profile"];
 
@@ -36,13 +37,13 @@ export async function updateSession(request: NextRequest) {
   if (isProtected && !user) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
-    redirectUrl.searchParams.set("next", path);
+    redirectUrl.searchParams.set("next", safeNextPath(path, "/dashboard"));
     return NextResponse.redirect(redirectUrl);
   }
 
   if (path === "/login" && user) {
     const nextParam = request.nextUrl.searchParams.get("next");
-    const next = nextParam?.startsWith("/") ? nextParam : "/dashboard";
+    const next = safeNextPath(nextParam, "/dashboard");
     return NextResponse.redirect(new URL(next, request.url));
   }
 

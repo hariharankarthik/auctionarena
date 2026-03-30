@@ -4,7 +4,13 @@ export default function AppGroupLayout({ children }: { children: React.ReactNode
   return (
     <>
       <Navbar />
-      <div className="min-h-[calc(100vh-3.5rem)] bg-neutral-950 text-neutral-100">{children}</div>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="aa-app-shell min-h-[calc(100vh-3.5rem)] text-neutral-100 outline-none"
+      >
+        {children}
+      </main>
     </>
   );
 }

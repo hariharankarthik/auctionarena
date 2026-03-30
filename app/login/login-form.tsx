@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Sparkles } from "lucide-react";
 
 export function LoginForm({ nextPath }: { nextPath: string }) {
   const router = useRouter();
@@ -63,20 +64,34 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-neutral-950 p-6">
-      <Card className="w-full max-w-md border-neutral-800">
-        <CardHeader>
-          <CardTitle>Sign in</CardTitle>
-          <CardDescription>AuctionArena — IPL auctions with friends</CardDescription>
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#070708] p-5 sm:p-8 outline-none"
+    >
+      <div className="aa-hero-glow opacity-50" aria-hidden />
+      <Card className="relative w-full max-w-md rounded-2xl border-emerald-500/20 bg-neutral-950/90 shadow-2xl shadow-black/40 ring-1 ring-white/5 backdrop-blur-md">
+        <CardHeader className="space-y-3 text-center sm:text-left">
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/20 to-amber-500/10 ring-1 ring-emerald-500/30 sm:mx-0">
+            <Sparkles className="h-5 w-5 text-emerald-400" aria-hidden />
+          </div>
+          <div>
+            <CardTitle className="text-2xl font-bold text-white">Welcome in</CardTitle>
+            <CardDescription className="mt-2 text-base text-neutral-400">
+              Sign in and jump straight into your auction.
+            </CardDescription>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <Button type="button" variant="secondary" className="w-full" disabled={loading} onClick={signInGoogle}>
+        <CardContent className="space-y-5">
+          <Button type="button" variant="secondary" className="h-11 w-full text-base" disabled={loading} onClick={signInGoogle}>
             Continue with Google
           </Button>
-          <div className="relative py-2 text-center text-xs text-neutral-500">
-            <span className="bg-neutral-950 px-2">or email</span>
+          <div className="flex items-center gap-3 text-xs text-neutral-500">
+            <span className="h-px flex-1 bg-neutral-800" aria-hidden />
+            <span className="shrink-0">or use email</span>
+            <span className="h-px flex-1 bg-neutral-800" aria-hidden />
           </div>
-          <form className="space-y-3" onSubmit={signInEmail}>
+          <form className="space-y-4" onSubmit={signInEmail}>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -86,6 +101,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="h-11"
               />
             </div>
             <div className="space-y-2">
@@ -97,21 +113,22 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="h-11"
               />
             </div>
             {message ? <p className="text-sm text-amber-400">{message}</p> : null}
             <div className="flex gap-2">
-              <Button type="submit" className="flex-1" disabled={loading}>
+              <Button type="submit" className="h-11 flex-1 text-base" disabled={loading}>
                 Sign in
               </Button>
-              <Button type="button" variant="outline" className="flex-1" disabled={loading} onClick={signUpEmail}>
+              <Button type="button" variant="outline" className="h-11 flex-1 text-base" disabled={loading} onClick={signUpEmail}>
                 Sign up
               </Button>
             </div>
           </form>
           <p className="text-center text-sm text-neutral-500">
-            <Link href="/" className="text-emerald-400 hover:underline">
-              ← Back home
+            <Link href="/" className="font-medium text-emerald-400 hover:text-emerald-300 hover:underline">
+              ← Back to home
             </Link>
           </p>
         </CardContent>

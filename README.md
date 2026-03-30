@@ -4,44 +4,92 @@ Real-time multiplayer auction rooms and season-long fantasy leagues (IPL-first).
 
 **Repository:** [github.com/hariharankarthik/auctionarena](https://github.com/hariharankarthik/auctionarena)
 
-Use this folder as your **Cursor / VS Code project root** — it is not part of any other monorepo.
+Open this folder as your **Cursor / VS Code project root**. Requires **Node.js 20+**.
 
-## Push to GitHub (first time)
+---
 
-`origin` is already set to `https://github.com/hariharankarthik/auctionarena.git`. From this directory:
+## Checklist: Supabase credentials → local UI test → GitHub → cloud host
 
-```bash
-git push -u origin main
-```
+### A. Get Supabase credentials
 
-If HTTPS asks for credentials, use a [Personal Access Token](https://github.com/settings/tokens) as the password, or switch to SSH:
+1. Go to [supabase.com](https://supabase.com) → **New project** (note the database password you set).
+2. Wait until the project is **healthy**.
+3. Open **Project Settings → API** and copy:
+   - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
+   - **`anon` `public` key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. You do **not** need the **service role** key for this app’s current routes (optional in `.env.example`).
 
-```bash
-git remote set-url origin git@github.com:hariharankarthik/auctionarena.git
-git push -u origin main
-```
+### B. Apply database schema and seed data
 
-Or sign in with [GitHub CLI](https://cli.github.com/): `gh auth login` then `git push -u origin main`.
+5. In Supabase: **SQL Editor → New query**.
+6. Paste and run **`supabase/migrations/001_initial_schema.sql`** → **Run** (wait for success).
+7. Paste and run **`supabase/migrations/002_seed_ipl_players.sql`** → **Run**.
 
-## Clone & run (on another machine)
+### C. Configure Auth (required for login / OAuth)
 
-```bash
-git clone https://github.com/hariharankarthik/auctionarena.git
-cd auctionarena
-npm install
-cp .env.example .env.local
-npm run dev
-```
+8. **Authentication → URL configuration**
+   - **Site URL:** `http://localhost:3000` (for local dev).
+   - **Redirect URLs:** add exactly  
+     `http://localhost:3000/auth/callback`  
+     (when you deploy, also add `https://YOUR-PRODUCTION-DOMAIN/auth/callback`).
+9. **Authentication → Providers:** leave **Email** enabled; add **Google** only if you configure Google OAuth (optional for MVP).
+10. If email confirmation blocks sign-in during testing: **Authentication → Providers → Email** → adjust “Confirm email” / use a test inbox, or disable confirmation for the dev project only.
 
-Requires **Node.js 20+**.
+### D. Run the app locally (visual smoke test)
 
-## Supabase
+11. In the repo root:
+    ```bash
+    npm install
+    cp .env.example .env.local
+    ```
+12. Edit **`.env.local`**:
+    - `NEXT_PUBLIC_SUPABASE_URL` = your Project URL  
+    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = your anon key  
+    - `NEXT_PUBLIC_APP_URL=http://localhost:3000`
+13. Start dev server:
+    ```bash
+    npm run dev
+    ```
+14. Open **http://localhost:3000** — you should see the marketing home page.
+15. **Sign up** (email) or **sign in** → **Dashboard**.
+16. **Create room** → **Lobby** → copy invite code; in a **second browser profile / incognito**, sign in as another user → **Join with code** → both **Ready** → host **Start live auction** → place a **bid** → host **Sold / End lot**.
 
-1. Create a project and run SQL in order: `supabase/migrations/001_initial_schema.sql`, then `002_seed_ipl_players.sql` (SQL editor or `supabase db push`).
-2. **Auth → URL configuration:** set Site URL to your app origin; add redirect `https://<your-domain>/auth/callback` (and `http://localhost:3000/auth/callback` for dev).
-3. Enable **Google** (or other) providers as needed.
-4. Confirm **Realtime** includes `auction_rooms`, `auction_teams`, `bids`, `auction_results`, `fantasy_scores` (migration adds the first four + scores).
+Optional: `npm run test` (logic tests) and `npm run build` (production build check).
 
-## Deploy
+### E. Put changes in source control on GitHub
 
-Connect this GitHub repo to Vercel and add Supabase (and optional CricAPI) environment variables in the Vercel project settings.
+17. From the repo root:
+    ```bash
+    git status
+    git add -A
+    git commit -m "Describe your change"
+    git push origin main
+    ```
+18. If `git push` asks for credentials: use a [GitHub Personal Access Token](https://github.com/settings/tokens) as the HTTPS password, **or** use SSH:
+    ```bash
+    git remote set-url origin git@github.com:hariharankarthik/auctionarena.git
+    git push origin main
+    ```
+
+### F. Host on the cloud (e.g. Vercel)
+
+19. Import the **GitHub** repo in [Vercel](https://vercel.com) (or your host of choice).
+20. **Environment variables** (Production + Preview as needed), same names as local:
+    - `NEXT_PUBLIC_SUPABASE_URL`
+    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+    - `NEXT_PUBLIC_APP_URL` = your production URL (e.g. `https://your-app.vercel.app`)
+21. Deploy. Then in Supabase **Auth → URL configuration**, set **Site URL** to the production URL and add the production **`/auth/callback`** redirect URL.
+22. Redeploy if you change env vars.
+
+---
+
+## Redirect safety
+
+Post-login `next` query values are sanitized with `safeNextPath()` / `loginUrlWithNext()` in middleware, `/login`, `/auth/callback`, and server redirects from room pages.
+
+---
+
+## Optional
+
+- **CricAPI** / **SUPABASE_SERVICE_ROLE_KEY**: not required for the current MVP flows.
+- **Sounds:** add MP3s under `public/sounds/` (see `public/sounds/README.txt`).
