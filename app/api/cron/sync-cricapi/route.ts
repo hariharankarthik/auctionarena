@@ -37,6 +37,14 @@ function parseCsv(s: string): string[] {
     .filter(Boolean);
 }
 
+/** `includes("ipl")` matches unrelated words (e.g. "multiple", "triple"); require whole token. */
+function matchNameContainsSeriesToken(haystackLower: string, sub: string): boolean {
+  const s = sub.trim().toLowerCase();
+  if (!s) return false;
+  if (s === "ipl") return /\bipl\b/.test(haystackLower);
+  return haystackLower.includes(s);
+}
+
 async function fetchCurrentMatchesFromCricApi(apikey: string, offset: number) {
   const url = `https://api.cricapi.com/v1/currentMatches?apikey=${encodeURIComponent(apikey)}&offset=${offset}`;
   const res = await fetch(url, { cache: "no-store" });
@@ -99,7 +107,7 @@ function extractUniqueIdsFromCurrentMatches(
 
     // Prefer filtering by series/match name to avoid false positives like PSL "Hyderabad Kingsmen".
     const matchesSeries = seriesSubstrings.length
-      ? seriesSubstrings.some((sub) => name.includes(sub.toLowerCase()))
+      ? seriesSubstrings.some((sub) => matchNameContainsSeriesToken(name, sub))
       : true;
     if (!matchesSeries) continue;
 
@@ -201,7 +209,9 @@ export async function GET(req: NextRequest) {
     const envDate = (process.env.CRICAPI_DAILY_MATCH_DATE ?? "").trim();
     const matchDatePrefix = (envDate || yyyyMmDd(today)).slice(0, 10);
     const yesterdayPrefix = yyyyMmDd(new Date(today.getTime() - 24 * 60 * 60 * 1000)).slice(0, 10);
-    const seriesSubstrings = parseCsv(process.env.CRICAPI_IPL_SERIES_SUBSTRINGS ?? "ipl,indian premier league");
+    const seriesSubstrings = parseCsv(
+      process.env.CRICAPI_IPL_SERIES_SUBSTRINGS ?? "indian premier league",
+    );
     const teamSubstrings = parseCsv(process.env.CRICAPI_IPL_TEAM_SUBSTRINGS ?? "");
 
     // Discovery: try a few pages since CricAPI is offset-based.
@@ -275,7 +285,7 @@ export async function GET(req: NextRequest) {
     return json(
       {
         error: "No IPL match ids found for today via currentMatches",
-        fix: "Either set CRICAPI_DAILY_MATCH_IDS explicitly, or adjust CRICAPI_IPL_TEAM_SUBSTRINGS to match CricAPI team names.",
+        fix: "Either set CRICAPI_DAILY_MATCH_IDS explicitly, or adjust CRICAPI_IPL_SERIES_SUBSTRINGS (e.g. indian premier league). Optional: CRICAPI_IPL_TEAM_SUBSTRINGS.",
       },
       { status: 400 },
     );
