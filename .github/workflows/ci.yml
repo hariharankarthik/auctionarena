@@ -17,8 +17,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
-      - run: npm ci
+      # No package-lock.json yet — use install (not ci). Re-enable cache: npm after committing a lockfile.
+      - run: npm install
       - run: npm run lint
       - run: npm run test
       - run: npm run build
