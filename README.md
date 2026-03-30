@@ -84,6 +84,21 @@ Optional: `npm run test` (logic tests) and `npm run build` (production build che
 23. Deploy. Then in Supabase **Auth → URL configuration**, set **Site URL** to the production URL and add the production **`/auth/callback`** redirect URL.
 24. Redeploy if you change env vars.
 
+### G. Vercel Cron (optional for auto scoring sync)
+This is an MVP cron that syncs **active fantasy leagues** for the CricAPI match IDs you provide.
+
+1. In Vercel, add these env vars (Production):
+   - `SUPABASE_SERVICE_ROLE_KEY` (required for the cron endpoint)
+   - `CRON_SECRET` (any long random string)
+   - `CRICAPI_DAILY_MATCH_IDS` (comma-separated CricAPI match IDs to fetch + score)
+   - `CRICAPI_DAILY_MATCH_DATE` (optional; default is today in UTC)
+2. Create a Cron job (Vercel Dashboard → Cron → Add Cron):
+   - Schedule: once per day (choose timing after the matches finish)
+   - URL: `https://YOUR_DOMAIN/api/cron/sync-cricapi?token=YOUR_CRON_SECRET`
+3. When it runs, it POSTs (internally) by fetching CricAPI scorecards and upserting rows into `fantasy_scores`.
+
+Note: “listing matches automatically” from CricAPI is not implemented yet — you’re providing match IDs via `CRICAPI_DAILY_MATCH_IDS` for now.
+
 ---
 
 ## Redirect safety
