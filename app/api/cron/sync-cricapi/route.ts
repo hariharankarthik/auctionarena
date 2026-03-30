@@ -47,7 +47,12 @@ async function fetchCurrentMatchesFromCricApi(apikey: string, offset: number) {
   return (await res.json()) as unknown;
 }
 
-function extractUniqueIdsFromCurrentMatches(raw: unknown, matchDatePrefix: string, teamSubstrings: string[]) {
+function extractUniqueIdsFromCurrentMatches(
+  raw: unknown,
+  matchDatePrefix: string,
+  teamSubstrings: string[],
+  seriesSubstrings: string[],
+) {
   const obj = raw as Record<string, unknown>;
   // CricAPI responses vary: some use `data`, some use `matches`.
   const matchesRaw = obj?.["matches"] ?? obj?.["data"];
@@ -92,11 +97,19 @@ function extractUniqueIdsFromCurrentMatches(raw: unknown, matchDatePrefix: strin
     const date = norm(mm?.date ?? mm?.dateTimeGMT ?? mm?.dateTime ?? mm?.matchDate ?? mm?.match_datetime);
     const name = norm(mm?.name ?? mm?.title ?? mm?.series ?? mm?.matchType);
 
-    const matchesIplTeam = teamSubstrings.some((sub) => {
-      const ss = sub.toLowerCase();
-      return team1.includes(ss) || team2.includes(ss) || name.includes(ss);
-    });
-    if (!matchesIplTeam) continue;
+    // Prefer filtering by series/match name to avoid false positives like PSL "Hyderabad Kingsmen".
+    const matchesSeries = seriesSubstrings.length
+      ? seriesSubstrings.some((sub) => name.includes(sub.toLowerCase()))
+      : true;
+    if (!matchesSeries) continue;
+
+    const matchesTeam = teamSubstrings.length
+      ? teamSubstrings.some((sub) => {
+          const ss = sub.toLowerCase();
+          return team1.includes(ss) || team2.includes(ss);
+        })
+      : true;
+    if (!matchesTeam) continue;
 
     // Prefer matches whose date matches today (if CricAPI returns date); fall back to started.
     const dateOk = matchDatePrefix ? date.startsWith(matchDatePrefix.toLowerCase()) : true;
@@ -188,7 +201,8 @@ export async function GET(req: NextRequest) {
     const envDate = (process.env.CRICAPI_DAILY_MATCH_DATE ?? "").trim();
     const matchDatePrefix = (envDate || yyyyMmDd(today)).slice(0, 10);
     const yesterdayPrefix = yyyyMmDd(new Date(today.getTime() - 24 * 60 * 60 * 1000)).slice(0, 10);
-    const teamSubstrings = parseCsv(process.env.CRICAPI_IPL_TEAM_SUBSTRINGS ?? "chennai,mumbai,kolkata,delhi,rajasthan,punjab,bangalore,lucknow,gujarat,hyderabad");
+    const seriesSubstrings = parseCsv(process.env.CRICAPI_IPL_SERIES_SUBSTRINGS ?? "ipl,indian premier league");
+    const teamSubstrings = parseCsv(process.env.CRICAPI_IPL_TEAM_SUBSTRINGS ?? "");
 
     // Discovery: try a few pages since CricAPI is offset-based.
     const raws: unknown[] = [];
@@ -196,18 +210,18 @@ export async function GET(req: NextRequest) {
       // eslint-disable-next-line no-await-in-loop
       const r = await fetchCurrentMatchesFromCricApi(cricApiKey, offset);
       raws.push(r);
-      matchIds.push(...extractUniqueIdsFromCurrentMatches(r, matchDatePrefix, teamSubstrings));
+      matchIds.push(...extractUniqueIdsFromCurrentMatches(r, matchDatePrefix, teamSubstrings, seriesSubstrings));
     }
     // Fallback 1: if match ended after midnight / date mismatch, try yesterday.
     if (!matchIds.length) {
       for (const r of raws) {
-        matchIds.push(...extractUniqueIdsFromCurrentMatches(r, yesterdayPrefix, teamSubstrings));
+        matchIds.push(...extractUniqueIdsFromCurrentMatches(r, yesterdayPrefix, teamSubstrings, seriesSubstrings));
       }
     }
     // Fallback 2: if CricAPI date format differs, retry without date filtering.
     if (!matchIds.length) {
       for (const r of raws) {
-        matchIds.push(...extractUniqueIdsFromCurrentMatches(r, "", teamSubstrings));
+        matchIds.push(...extractUniqueIdsFromCurrentMatches(r, "", teamSubstrings, seriesSubstrings));
       }
     }
     // Dedup across pages.
@@ -248,6 +262,7 @@ export async function GET(req: NextRequest) {
         stage: "discovery",
         match_date_prefix: matchDatePrefix,
         yesterday_date_prefix: yesterdayPrefix,
+        series_substrings: seriesSubstrings,
         team_substrings: teamSubstrings,
         discovered_match_ids: matchIds,
         pages: [0, 1, 2, 3].map((offset, i) => ({ offset, ...describe(raws[i]) })),
