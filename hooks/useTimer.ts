@@ -9,6 +9,8 @@ export function useTimer(roomId: string, isHost: boolean, duration: number) {
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const timeLeftRef = useRef(timeLeft);
+  timeLeftRef.current = timeLeft;
 
   useEffect(() => {
     const ch = supabase.channel(`timer:${roomId}`);
@@ -18,10 +20,15 @@ export function useTimer(roomId: string, isHost: boolean, duration: number) {
       ch.on("broadcast", { event: "tick" }, ({ payload }) => {
         const t = (payload as { timeLeft?: number }).timeLeft;
         if (typeof t === "number") setTimeLeft(t);
-      }).on("broadcast", { event: "reset" }, ({ payload }) => {
-        const d = (payload as { duration?: number }).duration;
-        if (typeof d === "number") setTimeLeft(d);
-      });
+      })
+        .on("broadcast", { event: "reset" }, ({ payload }) => {
+          const d = (payload as { duration?: number }).duration;
+          if (typeof d === "number") setTimeLeft(d);
+        })
+        .on("broadcast", { event: "freeze" }, ({ payload }) => {
+          const t = (payload as { timeLeft?: number }).timeLeft;
+          if (typeof t === "number") setTimeLeft(t);
+        });
     }
 
     void ch.subscribe();
@@ -45,6 +52,7 @@ export function useTimer(roomId: string, isHost: boolean, duration: number) {
         });
         if (next <= 0) {
           if (intervalRef.current) clearInterval(intervalRef.current);
+          intervalRef.current = null;
           setIsRunning(false);
         }
         return next;
@@ -55,6 +63,7 @@ export function useTimer(roomId: string, isHost: boolean, duration: number) {
   const reset = useCallback(
     (newDuration?: number) => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = null;
       const d = newDuration ?? duration;
       setTimeLeft(d);
       setIsRunning(false);
@@ -67,5 +76,19 @@ export function useTimer(roomId: string, isHost: boolean, duration: number) {
     [duration],
   );
 
-  return { timeLeft, isRunning, start, reset };
+  /** Stop countdown and sync guests (e.g. auction paused). Does not change the displayed second. */
+  const freeze = useCallback(() => {
+    if (!isHost) return;
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = null;
+    setIsRunning(false);
+    const t = timeLeftRef.current;
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "freeze",
+      payload: { timeLeft: t },
+    });
+  }, [isHost]);
+
+  return { timeLeft, isRunning, start, reset, freeze };
 }

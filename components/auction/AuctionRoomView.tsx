@@ -37,7 +37,7 @@ export function AuctionRoomView({
   const duration = cfg.timerSeconds ?? 30;
   const increments = cfg.bidIncrements ?? [5, 10, 20, 25, 50, 100];
   const isHost = room?.host_id === userId;
-  const { timeLeft, start, reset } = useTimer(roomId, isHost, duration);
+  const { timeLeft, start, reset, freeze } = useTimer(roomId, isHost, duration);
   const reduceMotion = useReducedMotion();
 
   const [player, setPlayer] = useState<PlayerRow | null>(null);
@@ -45,6 +45,37 @@ export function AuctionRoomView({
   const [soldOverlay, setSoldOverlay] = useState<{ open: boolean; label: string }>({ open: false, label: "" });
   const prevTick = useRef<number | null>(null);
   const prevTimeLeftForToast = useRef<number | null>(null);
+  const prevAuctionStatusRef = useRef<string | undefined>(undefined);
+  const prevPlayerIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    prevAuctionStatusRef.current = undefined;
+    prevPlayerIdRef.current = null;
+  }, [roomId]);
+
+  useEffect(() => {
+    if (!isHost || !room) return;
+    const s = room.status;
+    const prev = prevAuctionStatusRef.current;
+    if (prev === "live" && s === "paused") {
+      freeze();
+    }
+    prevAuctionStatusRef.current = s;
+  }, [room?.status, isHost, room, freeze]);
+
+  useEffect(() => {
+    if (!isHost || !room) return;
+    const pid = room.current_player_id;
+    if (room.status !== "live") {
+      if (pid) prevPlayerIdRef.current = pid;
+      return;
+    }
+    if (!pid) return;
+    if (prevPlayerIdRef.current !== null && prevPlayerIdRef.current !== pid) {
+      reset(duration);
+    }
+    prevPlayerIdRef.current = pid;
+  }, [room?.current_player_id, room?.status, isHost, duration, reset, room]);
 
   useEffect(() => {
     if (loading || !room) return;
@@ -199,19 +230,30 @@ export function AuctionRoomView({
         </div>
         <TimerDisplay seconds={timeLeft} />
         {isHost ? (
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              onClick={() => {
-                reset(duration);
-                start();
-              }}
-            >
-              Start timer
-            </Button>
-            <Button type="button" variant="outline" onClick={() => reset(duration)}>
-              Reset timer
-            </Button>
+          <div className="space-y-2">
+            <p className="text-xs text-neutral-500">
+              Pausing the auction freezes the clock. Sold / Unsold / Next resets the clock to {duration}s for the new lot (does not auto-start).
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                disabled={room.status !== "live"}
+                onClick={() => {
+                  reset(duration);
+                  start();
+                }}
+              >
+                Start timer
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={room.status !== "live"}
+                onClick={() => reset(duration)}
+              >
+                Reset timer
+              </Button>
+            </div>
           </div>
         ) : null}
         <BidControls
