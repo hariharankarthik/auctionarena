@@ -10,6 +10,10 @@ import { TeamSlot } from "./TeamSlot";
 import type { AuctionTeam } from "@/lib/sports/types";
 import { Copy, Link2, PartyPopper } from "lucide-react";
 
+const isDev = process.env.NODE_ENV === "development";
+/** In dev, host can start with one ready team (solo smoke tests). Production still requires ≥2. */
+const MIN_TEAMS_TO_START = isDev ? 1 : 2;
+
 export function LobbyView({
   roomId,
   isHost,
@@ -31,7 +35,7 @@ export function LobbyView({
   }, [roomId]);
 
   const readyCount = teams.filter((t) => t.is_ready).length;
-  const allReady = teams.length >= 2 && teams.every((t) => t.is_ready);
+  const allReady = teams.length >= MIN_TEAMS_TO_START && teams.every((t) => t.is_ready);
   const canStart = isHost && allReady && room?.status === "lobby";
 
   useEffect(() => {
@@ -107,6 +111,11 @@ export function LobbyView({
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-500/90">Pre-match lobby</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">{room.name}</h1>
         <p className="mt-2 text-sm text-neutral-400">Invite friends, pick colors, get everyone ready — then go live.</p>
+        {isDev ? (
+          <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-950/30 px-3 py-2 text-xs text-amber-200/90">
+            Dev mode: you can start with <strong>one</strong> ready team. Production still needs two teams.
+          </p>
+        ) : null}
       </div>
 
       <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-b from-emerald-950/30 to-neutral-950/60 p-5 sm:p-6">
@@ -189,7 +198,7 @@ export function LobbyView({
           <p className="mt-1 text-xs text-neutral-500">
             {allReady
               ? "Everyone’s in — hit start when the room feels electric."
-              : `Need at least 2 teams and all ready (${teams.length} team${teams.length === 1 ? "" : "s"}).`}
+              : `Need at least ${MIN_TEAMS_TO_START} team${MIN_TEAMS_TO_START === 1 ? "" : "s"} and all ready (${teams.length} joined).`}
           </p>
           <Button
             type="button"

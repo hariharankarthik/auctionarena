@@ -53,19 +53,20 @@ Open this folder as your **Cursor / VS Code project root**. Requires **Node.js 2
 14. Open **http://localhost:3000** — you should see the marketing home page.
 15. **Sign up** (email) or **sign in** → **Dashboard**.
 16. **Create room** → **Lobby** → copy invite code; in a **second browser profile / incognito**, sign in as another user → **Join with code** → both **Ready** → host **Start live auction** → place a **bid** → host **Sold / End lot**.
+17. **Solo dev (`npm run dev` only):** the lobby shows a dev banner and lets the host **Start** with **one** ready team (your host team). Production builds still require **two** teams.
 
 Optional: `npm run test` (logic tests) and `npm run build` (production build check).
 
 ### E. Put changes in source control on GitHub
 
-17. From the repo root:
+18. From the repo root:
     ```bash
     git status
     git add -A
     git commit -m "Describe your change"
     git push origin main
     ```
-18. If `git push` asks for credentials: use a [GitHub Personal Access Token](https://github.com/settings/tokens) as the HTTPS password, **or** use SSH:
+19. If `git push` asks for credentials: use a [GitHub Personal Access Token](https://github.com/settings/tokens) as the HTTPS password, **or** use SSH:
     ```bash
     git remote set-url origin git@github.com:hariharankarthik/auctionarena.git
     git push origin main
@@ -73,13 +74,13 @@ Optional: `npm run test` (logic tests) and `npm run build` (production build che
 
 ### F. Host on the cloud (e.g. Vercel)
 
-19. Import the **GitHub** repo in [Vercel](https://vercel.com) (or your host of choice).
-20. **Environment variables** (Production + Preview as needed), same names as local:
+20. Import the **GitHub** repo in [Vercel](https://vercel.com) (or your host of choice).
+21. **Environment variables** (Production + Preview as needed), same names as local:
     - `NEXT_PUBLIC_SUPABASE_URL`
     - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
     - `NEXT_PUBLIC_APP_URL` = your production URL (e.g. `https://your-app.vercel.app`)
-21. Deploy. Then in Supabase **Auth → URL configuration**, set **Site URL** to the production URL and add the production **`/auth/callback`** redirect URL.
-22. Redeploy if you change env vars.
+22. Deploy. Then in Supabase **Auth → URL configuration**, set **Site URL** to the production URL and add the production **`/auth/callback`** redirect URL.
+23. Redeploy if you change env vars.
 
 ---
 
