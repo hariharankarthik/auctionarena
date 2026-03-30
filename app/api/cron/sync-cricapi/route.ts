@@ -37,6 +37,57 @@ function parseCsv(s: string): string[] {
     .filter(Boolean);
 }
 
+async function fetchCurrentMatchesFromCricApi(apikey: string, offset: number) {
+  const url = `https://api.cricapi.com/v1/currentMatches?apikey=${encodeURIComponent(apikey)}&offset=${offset}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`CricAPI currentMatches HTTP ${res.status}: ${t.slice(0, 200)}`);
+  }
+  return (await res.json()) as unknown;
+}
+
+function extractUniqueIdsFromCurrentMatches(raw: unknown, matchDatePrefix: string, teamSubstrings: string[]) {
+  const obj = raw as Record<string, unknown>;
+  const matchesRaw = obj?.["matches"];
+  const matches: unknown[] = Array.isArray(matchesRaw) ? matchesRaw : [];
+  const uniqueIds: string[] = [];
+
+  const norm = (s: unknown) => String(s ?? "").toLowerCase();
+
+  for (const m of matches) {
+    if (!m || typeof m !== "object") continue;
+    const mm = m as Record<string, unknown>;
+    const uid = mm["unique_id"] ?? mm["uniqueId"];
+    if (!uid) continue;
+
+    const team1 = norm(mm?.["team-1"] ?? mm?.team1 ?? mm?.team_1);
+    const team2 = norm(mm?.["team-2"] ?? mm?.team2 ?? mm?.team_2);
+    const type = norm(mm?.type);
+    const started = Boolean(mm?.matchStarted);
+    const date = norm(mm?.date);
+
+    const matchesIplTeam = teamSubstrings.some((sub) => {
+      const ss = sub.toLowerCase();
+      return team1.includes(ss) || team2.includes(ss);
+    });
+    if (!matchesIplTeam) continue;
+
+    // Prefer matches whose date matches today (if CricAPI returns date); fall back to started.
+    const dateOk = matchDatePrefix ? date.startsWith(matchDatePrefix.toLowerCase()) : true;
+    if (!dateOk) continue;
+    if (!started && type) {
+      // if started isn't provided but type exists, still allow through if date matches
+    }
+
+    uniqueIds.push(String(uid));
+  }
+
+  // Deduplicate preserving order
+  const seen = new Set<string>();
+  return uniqueIds.filter((x) => (seen.has(x) ? false : (seen.add(x), true)));
+}
+
 function mergeBreakdown(into: Record<string, number>, add: Record<string, number>) {
   for (const [k, v] of Object.entries(add)) {
     into[k] = (into[k] ?? 0) + v;
@@ -57,6 +108,7 @@ export async function GET(req: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const cronSecret = process.env.CRON_SECRET;
+  const cricApiKey = process.env.CRICAPI_KEY?.trim();
 
   const provided = req.headers.get("x-cron-secret") ?? req.nextUrl.searchParams.get("token");
   if (!cronSecret || !provided || provided !== cronSecret) {
@@ -68,12 +120,27 @@ export async function GET(req: NextRequest) {
   }
 
   const matchIdsRaw = process.env.CRICAPI_DAILY_MATCH_IDS ?? "";
-  const matchIds = parseCsv(matchIdsRaw);
+  let matchIds = parseCsv(matchIdsRaw);
   if (matchIds.length === 0) {
-    return NextResponse.json({ error: "No match ids found in CRICAPI_DAILY_MATCH_IDS" }, { status: 400 });
+    if (!cricApiKey) {
+      return NextResponse.json(
+        { error: "No match ids provided and CRICAPI_KEY is missing" },
+        { status: 400 },
+      );
+    }
+
+    const matchDatePrefix = (process.env.CRICAPI_DAILY_MATCH_DATE ?? new Date().toISOString().slice(0, 10)).slice(0, 10);
+    const teamSubstrings = parseCsv(process.env.CRICAPI_IPL_TEAM_SUBSTRINGS ?? "chennai,mumbai,kolkata,delhi,rajasthan,punjab,bangalore,lucknow,gujarat,hyderabad");
+
+    // MVP: pull first page of currentMatches (offset=0). If your match list is large, increase offsets.
+    const raw = await fetchCurrentMatchesFromCricApi(cricApiKey, 0);
+    matchIds = extractUniqueIdsFromCurrentMatches(raw, matchDatePrefix, teamSubstrings);
   }
 
   const matchDate = process.env.CRICAPI_DAILY_MATCH_DATE ?? new Date().toISOString().slice(0, 10);
+  if (!matchIds.length) {
+    return NextResponse.json({ error: "No IPL match ids found for today via currentMatches" }, { status: 400 });
+  }
 
   const supabaseAdmin = createServerClient(url, serviceKey, {
     cookies: {

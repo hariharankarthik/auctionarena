@@ -90,14 +90,19 @@ This is an MVP cron that syncs **active fantasy leagues** for the CricAPI match 
 1. In Vercel, add these env vars (Production):
    - `SUPABASE_SERVICE_ROLE_KEY` (required for the cron endpoint)
    - `CRON_SECRET` (any long random string)
-   - `CRICAPI_DAILY_MATCH_IDS` (comma-separated CricAPI match IDs to fetch + score)
+   - `CRICAPI_KEY` (required if you rely on auto-discovery; always required to fetch scorecards)
+   - `CRICAPI_DAILY_MATCH_IDS` (optional; comma-separated CricAPI match IDs to fetch + score)
    - `CRICAPI_DAILY_MATCH_DATE` (optional; default is today in UTC)
+   - `CRICAPI_IPL_TEAM_SUBSTRINGS` (optional; comma-separated substrings used to filter IPL teams from CricAPI `currentMatches`)
 2. Create a Cron job (Vercel Dashboard → Cron → Add Cron):
    - Schedule: once per day (choose timing after the matches finish)
    - URL: `https://YOUR_DOMAIN/api/cron/sync-cricapi?token=YOUR_CRON_SECRET`
-3. When it runs, it POSTs (internally) by fetching CricAPI scorecards and upserting rows into `fantasy_scores`.
+3. When it runs, it:
+   - If `CRICAPI_DAILY_MATCH_IDS` is set, it fetches those match scorecards.
+   - Otherwise, it auto-lists IPL matches via CricAPI `currentMatches`, filters by `CRICAPI_IPL_TEAM_SUBSTRINGS`, then fetches scorecards for those match `unique_id`s.
+   - Upserts rows into `fantasy_scores` so leaderboards update.
 
-Note: “listing matches automatically” from CricAPI is not implemented yet — you’re providing match IDs via `CRICAPI_DAILY_MATCH_IDS` for now.
+This is still MVP-level match discovery: if CricAPI’s `currentMatches` payload differs, you may need to tweak `CRICAPI_IPL_TEAM_SUBSTRINGS` or provide explicit `CRICAPI_DAILY_MATCH_IDS`.
 
 ---
 
