@@ -49,7 +49,8 @@ async function fetchCurrentMatchesFromCricApi(apikey: string, offset: number) {
 
 function extractUniqueIdsFromCurrentMatches(raw: unknown, matchDatePrefix: string, teamSubstrings: string[]) {
   const obj = raw as Record<string, unknown>;
-  const matchesRaw = obj?.["matches"];
+  // CricAPI responses vary: some use `data`, some use `matches`.
+  const matchesRaw = obj?.["matches"] ?? obj?.["data"];
   const matches: unknown[] = Array.isArray(matchesRaw) ? matchesRaw : [];
   const uniqueIds: string[] = [];
 
@@ -161,36 +162,55 @@ export async function GET(req: NextRequest) {
     const matchDatePrefix = (process.env.CRICAPI_DAILY_MATCH_DATE ?? new Date().toISOString().slice(0, 10)).slice(0, 10);
     const teamSubstrings = parseCsv(process.env.CRICAPI_IPL_TEAM_SUBSTRINGS ?? "chennai,mumbai,kolkata,delhi,rajasthan,punjab,bangalore,lucknow,gujarat,hyderabad");
 
-    // MVP: pull first page of currentMatches (offset=0). If your match list is large, increase offsets.
-    const raw = await fetchCurrentMatchesFromCricApi(cricApiKey, 0);
-    matchIds = extractUniqueIdsFromCurrentMatches(raw, matchDatePrefix, teamSubstrings);
+    // Discovery: try a few pages since CricAPI is offset-based.
+    const raws: unknown[] = [];
+    for (const offset of [0, 1, 2, 3]) {
+      // eslint-disable-next-line no-await-in-loop
+      const r = await fetchCurrentMatchesFromCricApi(cricApiKey, offset);
+      raws.push(r);
+      matchIds.push(...extractUniqueIdsFromCurrentMatches(r, matchDatePrefix, teamSubstrings));
+    }
     // Fallback: if CricAPI date format differs, retry without date filtering.
     if (!matchIds.length) {
-      matchIds = extractUniqueIdsFromCurrentMatches(raw, "", teamSubstrings);
+      for (const r of raws) {
+        matchIds.push(...extractUniqueIdsFromCurrentMatches(r, "", teamSubstrings));
+      }
     }
+    // Dedup across pages.
+    matchIds = [...new Set(matchIds)];
 
     if (debug) {
-      const obj = raw as Record<string, unknown>;
-      const matchesRaw = obj?.["matches"];
-      const matches: unknown[] = Array.isArray(matchesRaw) ? matchesRaw : [];
-      const sample_matches = matches.slice(0, 10).map((m) => {
-        const mm = (m && typeof m === "object" ? (m as Record<string, unknown>) : {}) as Record<string, unknown>;
+      const describe = (r: unknown) => {
+        const obj = (r && typeof r === "object" ? (r as Record<string, unknown>) : {}) as Record<string, unknown>;
+        const listRaw = obj?.["matches"] ?? obj?.["data"];
+        const list: unknown[] = Array.isArray(listRaw) ? listRaw : [];
+        const sample = list.slice(0, 5).map((m) => {
+          const mm = (m && typeof m === "object" ? (m as Record<string, unknown>) : {}) as Record<string, unknown>;
+          return {
+            unique_id: mm["unique_id"] ?? mm["uniqueId"] ?? null,
+            id: mm["id"] ?? null,
+            match_id: mm["match_id"] ?? mm["matchId"] ?? null,
+            team_1: mm["team-1"] ?? mm["team1"] ?? mm["team_1"] ?? null,
+            team_2: mm["team-2"] ?? mm["team2"] ?? mm["team_2"] ?? null,
+            date: mm["date"] ?? null,
+            type: mm["type"] ?? null,
+            matchStarted: mm["matchStarted"] ?? null,
+          };
+        });
         return {
-          unique_id: mm["unique_id"] ?? mm["uniqueId"] ?? null,
-          team_1: mm["team-1"] ?? mm["team1"] ?? mm["team_1"] ?? null,
-          team_2: mm["team-2"] ?? mm["team2"] ?? mm["team_2"] ?? null,
-          date: mm["date"] ?? null,
-          type: mm["type"] ?? null,
-          matchStarted: mm["matchStarted"] ?? null,
+          top_level_keys: Object.keys(obj).slice(0, 30),
+          list_field: obj["matches"] ? "matches" : obj["data"] ? "data" : null,
+          list_length: list.length,
+          sample,
         };
-      });
+      };
       return json({
         debug: true,
         stage: "discovery",
         match_date_prefix: matchDatePrefix,
         team_substrings: teamSubstrings,
         discovered_match_ids: matchIds,
-        sample_matches,
+        pages: [0, 1, 2, 3].map((offset, i) => ({ offset, ...describe(raws[i]) })),
       });
     }
   }
