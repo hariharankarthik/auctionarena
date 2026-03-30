@@ -47,7 +47,12 @@ export function AuctionRoomView({
   const prevTimeLeftForToast = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!loading && room && room.status !== "live") {
+    if (loading || !room) return;
+    if (room.status === "completed") {
+      router.replace(`/room/${roomId}/results`);
+      return;
+    }
+    if (room.status === "lobby") {
       router.replace(`/room/${roomId}/lobby`);
     }
   }, [loading, room, roomId, router]);
@@ -144,7 +149,7 @@ export function AuctionRoomView({
     );
   }
 
-  if (room.status !== "live") {
+  if (room.status !== "live" && room.status !== "paused") {
     return (
       <div className="flex min-h-[30vh] items-center justify-center p-8 text-sm text-neutral-500">
         Taking you back to the lobby…
@@ -161,10 +166,21 @@ export function AuctionRoomView({
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-400/90">On the block</p>
             <h1 className="mt-1 text-xl font-bold text-white sm:text-2xl">{room.name}</h1>
           </div>
-          <Badge variant="live" className="animate-pulse px-3 py-1 text-xs motion-reduce:animate-none">
-            LIVE
-          </Badge>
+          {room.status === "paused" ? (
+            <Badge variant="outline" className="border-amber-500/50 bg-amber-950/40 px-3 py-1 text-xs text-amber-200">
+              PAUSED
+            </Badge>
+          ) : (
+            <Badge variant="live" className="animate-pulse px-3 py-1 text-xs motion-reduce:animate-none">
+              LIVE
+            </Badge>
+          )}
         </div>
+        {room.status === "paused" ? (
+          <p className="rounded-lg border border-amber-500/20 bg-amber-950/20 px-3 py-2 text-sm text-amber-100/90">
+            Bidding is frozen. Host: tap <strong>Resume</strong> below. You can also use the lobby — state is saved in the database.
+          </p>
+        ) : null}
         <PlayerCard player={player} />
         <div className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/40 to-neutral-950/90 p-5 ring-1 ring-emerald-500/10">
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Current bid</p>

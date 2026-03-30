@@ -18,6 +18,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Auction already started or completed" }, { status: 400 });
   }
 
+  // Resume mid-auction: keep current player, bid, and bidder (all persisted in auction_rooms).
+  if (room.status === "paused") {
+    const { error: upErr } = await supabase.from("auction_rooms").update({ status: "live" }).eq("id", room_id);
+    if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
+    return NextResponse.json({ success: true, resumed: true });
+  }
+
   const queue = room.player_queue ?? [];
   if (!queue.length) return NextResponse.json({ error: "Empty player queue" }, { status: 400 });
 

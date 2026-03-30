@@ -8,6 +8,7 @@ import { useAuctionRoom } from "@/hooks/useAuctionRoom";
 import { Button } from "@/components/ui/button";
 import { TeamSlot } from "./TeamSlot";
 import type { AuctionTeam } from "@/lib/sports/types";
+import Link from "next/link";
 import { Copy, Link2, PartyPopper } from "lucide-react";
 
 const isDev = process.env.NODE_ENV === "development";
@@ -37,6 +38,7 @@ export function LobbyView({
   const readyCount = teams.filter((t) => t.is_ready).length;
   const allReady = teams.length >= MIN_TEAMS_TO_START && teams.every((t) => t.is_ready);
   const canStart = isHost && allReady && room?.status === "lobby";
+  const canResume = isHost && room?.status === "paused";
 
   useEffect(() => {
     if (!room || loading) return;
@@ -111,6 +113,15 @@ export function LobbyView({
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-500/90">Pre-match lobby</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">{room.name}</h1>
         <p className="mt-2 text-sm text-neutral-400">Invite friends, pick colors, get everyone ready — then go live.</p>
+        {room.status === "paused" ? (
+          <p className="mt-3 rounded-lg border border-amber-500/25 bg-amber-950/25 px-3 py-2 text-sm text-amber-100/90">
+            <strong className="font-medium">Auction paused.</strong> Current player, bids, team purses, and sold players stay in the database — nothing is lost. Host can{" "}
+            <Link href={`/room/${roomId}/auction`} className="text-emerald-400 underline-offset-2 hover:underline">
+              open the live board
+            </Link>{" "}
+            and tap <strong>Resume</strong>, or resume from here.
+          </p>
+        ) : null}
         {isDev ? (
           <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-950/30 px-3 py-2 text-xs text-amber-200/90">
             Dev mode: you can start with <strong>one</strong> ready team. Production still needs two teams.
@@ -196,19 +207,28 @@ export function LobbyView({
         <div className="rounded-2xl border border-neutral-800 bg-neutral-950/50 p-5">
           <p className="text-sm font-medium text-white">Host controls</p>
           <p className="mt-1 text-xs text-neutral-500">
-            {allReady
-              ? "Everyone’s in — hit start when the room feels electric."
-              : `Need at least ${MIN_TEAMS_TO_START} team${MIN_TEAMS_TO_START === 1 ? "" : "s"} and all ready (${teams.length} joined).`}
+            {canResume
+              ? "Paused mid-auction — state is saved. Resume to pick up the same lot."
+              : allReady
+                ? "Everyone’s in — hit start when the room feels electric."
+                : `Need at least ${MIN_TEAMS_TO_START} team${MIN_TEAMS_TO_START === 1 ? "" : "s"} and all ready (${teams.length} joined).`}
           </p>
           <Button
             type="button"
             className="mt-4 h-11 w-full text-base sm:w-auto sm:min-w-[220px]"
-            disabled={!canStart || starting}
+            disabled={!(canStart || canResume) || starting}
             onClick={() => void startAuction()}
           >
-            {starting ? "Starting…" : "Start live auction"}
+            {starting ? "Starting…" : canResume ? "Resume auction" : "Start live auction"}
           </Button>
         </div>
+      ) : room.status === "paused" ? (
+        <p className="text-center text-sm text-neutral-400">
+          Auction paused — waiting for the host to resume.{" "}
+          <Link href={`/room/${roomId}/auction`} className="text-emerald-400 underline-offset-2 hover:underline">
+            View live board
+          </Link>
+        </p>
       ) : (
         <p className="text-center text-sm text-neutral-500">When the host starts, you’ll jump into the live block.</p>
       )}
