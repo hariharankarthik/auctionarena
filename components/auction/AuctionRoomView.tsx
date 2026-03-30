@@ -225,8 +225,15 @@ export function AuctionRoomView({
         {isHost ? (
           <div className="space-y-2">
             <p className="text-xs uppercase text-neutral-500">Host controls</p>
+            {!room.current_bidder_team_id ? (
+              <p className="text-xs text-neutral-500">
+                No high bidder yet — <strong className="font-medium text-neutral-400">Sold / End lot</strong> stays off until someone bids. Use{" "}
+                <strong className="font-medium text-neutral-400">Unsold</strong> to pass the player.
+              </p>
+            ) : null}
             <AuctionControls
               roomId={roomId}
+              hasWinningBidder={Boolean(room.current_bidder_team_id)}
               onLotFinalized={(info) => {
                 setSoldOverlay({ open: true, label: info.wasSold ? "SOLD!" : "UNSOLD" });
                 if (info.wasSold) playSound("gavel");
