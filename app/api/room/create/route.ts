@@ -110,5 +110,13 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  await supabase.from("auction_teams").insert({
+    room_id: room.id,
+    owner_id: user.id,
+    team_name: `${name.trim()} (Host)`,
+    team_color: "#10B981",
+    remaining_purse: purseVal,
+  });
+
   return NextResponse.json({ room_id: room.id, invite_code: room.invite_code });
 }
