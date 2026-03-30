@@ -109,6 +109,13 @@ export async function GET(req: NextRequest) {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const cronSecret = process.env.CRON_SECRET;
   const cricApiKey = process.env.CRICAPI_KEY?.trim();
+  const debug = req.nextUrl.searchParams.get("debug") === "1";
+
+  const json = (body: unknown, init?: { status?: number }) => {
+    const res = NextResponse.json(body, { status: init?.status });
+    res.headers.set("cache-control", "no-store");
+    return res;
+  };
 
   // Auth: allow Vercel Cron header, otherwise require your shared secret (token / header / Bearer).
   const isVercelCron = req.headers.get("x-vercel-cron") === "1";
@@ -119,20 +126,30 @@ export async function GET(req: NextRequest) {
       req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
       null;
     if (!cronSecret || !provided || provided !== cronSecret) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return json({ error: "Forbidden" }, { status: 403 });
     }
   }
 
   if (!url || !serviceKey) {
-    return NextResponse.json({ error: "Missing Supabase service env vars" }, { status: 500 });
+    return json(
+      {
+        error: "Missing Supabase service env vars",
+        has_supabase_url: Boolean(url),
+        has_service_role_key: Boolean(serviceKey),
+      },
+      { status: 500 },
+    );
   }
 
   const matchIdsRaw = process.env.CRICAPI_DAILY_MATCH_IDS ?? "";
   let matchIds = parseCsv(matchIdsRaw);
   if (matchIds.length === 0) {
     if (!cricApiKey) {
-      return NextResponse.json(
-        { error: "No match ids provided and CRICAPI_KEY is missing" },
+      return json(
+        {
+          error: "No match ids provided and CRICAPI_KEY is missing",
+          fix: "Set CRICAPI_KEY in Vercel env vars (Production).",
+        },
         { status: 400 },
       );
     }
@@ -147,11 +164,27 @@ export async function GET(req: NextRequest) {
     if (!matchIds.length) {
       matchIds = extractUniqueIdsFromCurrentMatches(raw, "", teamSubstrings);
     }
+
+    if (debug) {
+      return json({
+        debug: true,
+        stage: "discovery",
+        match_date_prefix: matchDatePrefix,
+        team_substrings: teamSubstrings,
+        discovered_match_ids: matchIds,
+      });
+    }
   }
 
   const matchDate = process.env.CRICAPI_DAILY_MATCH_DATE ?? new Date().toISOString().slice(0, 10);
   if (!matchIds.length) {
-    return NextResponse.json({ error: "No IPL match ids found for today via currentMatches" }, { status: 400 });
+    return json(
+      {
+        error: "No IPL match ids found for today via currentMatches",
+        fix: "Either set CRICAPI_DAILY_MATCH_IDS explicitly, or adjust CRICAPI_IPL_TEAM_SUBSTRINGS to match CricAPI team names.",
+      },
+      { status: 400 },
+    );
   }
 
   const supabaseAdmin = createServerClient(url, serviceKey, {
