@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { scorePlayerMatch, type PlayerMatchStats } from "@/lib/fantasy-scoring";
 import { effectivePointsWithLineup } from "@/lib/fantasy-scoring/lineup-multipliers";
+import { extractMatchIdsFromCurrentMatchesJson } from "@/lib/cricapi/discover-match-ids";
 import {
   extractPerformancesFromCricApiJson,
   fetchCricApiScorecardJson,
@@ -37,14 +38,6 @@ function parseCsv(s: string): string[] {
     .filter(Boolean);
 }
 
-/** `includes("ipl")` matches unrelated words (e.g. "multiple", "triple"); require whole token. */
-function matchNameContainsSeriesToken(haystackLower: string, sub: string): boolean {
-  const s = sub.trim().toLowerCase();
-  if (!s) return false;
-  if (s === "ipl") return /\bipl\b/.test(haystackLower);
-  return haystackLower.includes(s);
-}
-
 async function fetchCurrentMatchesFromCricApi(apikey: string, offset: number) {
   const url = `https://api.cricapi.com/v1/currentMatches?apikey=${encodeURIComponent(apikey)}&offset=${offset}`;
   const res = await fetch(url, { cache: "no-store" });
@@ -53,85 +46,6 @@ async function fetchCurrentMatchesFromCricApi(apikey: string, offset: number) {
     throw new Error(`CricAPI currentMatches HTTP ${res.status}: ${t.slice(0, 200)}`);
   }
   return (await res.json()) as unknown;
-}
-
-function extractUniqueIdsFromCurrentMatches(
-  raw: unknown,
-  matchDatePrefix: string,
-  teamSubstrings: string[],
-  seriesSubstrings: string[],
-) {
-  const obj = raw as Record<string, unknown>;
-  // CricAPI responses vary: some use `data`, some use `matches`.
-  const matchesRaw = obj?.["matches"] ?? obj?.["data"];
-  const matches: unknown[] = Array.isArray(matchesRaw) ? matchesRaw : [];
-  const uniqueIds: string[] = [];
-
-  const norm = (s: unknown) => String(s ?? "").toLowerCase();
-  const pickTeamName = (t: unknown) => {
-    if (!t) return "";
-    if (typeof t === "string") return t;
-    if (typeof t === "object") {
-      const o = t as Record<string, unknown>;
-      return String(o.name ?? o.shortname ?? o.shortName ?? o.title ?? o.teamName ?? "");
-    }
-    return "";
-  };
-
-  for (const m of matches) {
-    if (!m || typeof m !== "object") continue;
-    const mm = m as Record<string, unknown>;
-    const uid = mm["unique_id"] ?? mm["uniqueId"] ?? mm["id"] ?? mm["match_id"] ?? mm["matchId"];
-    if (!uid) continue;
-
-    const teamsRaw = mm?.teams;
-    const teamInfoRaw = mm?.teamInfo ?? mm?.teaminfo ?? mm?.teamsInfo;
-    const teams = Array.isArray(teamsRaw) ? teamsRaw : [];
-    const teamInfo = Array.isArray(teamInfoRaw) ? teamInfoRaw : [];
-
-    const team1Name =
-      String(mm?.["team-1"] ?? mm?.team1 ?? mm?.team_1 ?? "") ||
-      pickTeamName(teamInfo[0]) ||
-      pickTeamName(teams[0]);
-    const team2Name =
-      String(mm?.["team-2"] ?? mm?.team2 ?? mm?.team_2 ?? "") ||
-      pickTeamName(teamInfo[1]) ||
-      pickTeamName(teams[1]);
-
-    const team1 = norm(team1Name);
-    const team2 = norm(team2Name);
-    const type = norm(mm?.type);
-    const started = Boolean(mm?.matchStarted);
-    const date = norm(mm?.date ?? mm?.dateTimeGMT ?? mm?.dateTime ?? mm?.matchDate ?? mm?.match_datetime);
-    const name = norm(mm?.name ?? mm?.title ?? mm?.series ?? mm?.matchType);
-
-    // Prefer filtering by series/match name to avoid false positives like PSL "Hyderabad Kingsmen".
-    const matchesSeries = seriesSubstrings.length
-      ? seriesSubstrings.some((sub) => matchNameContainsSeriesToken(name, sub))
-      : true;
-    if (!matchesSeries) continue;
-
-    const matchesTeam = teamSubstrings.length
-      ? teamSubstrings.some((sub) => {
-          const ss = sub.toLowerCase();
-          return team1.includes(ss) || team2.includes(ss);
-        })
-      : true;
-    if (!matchesTeam) continue;
-
-    // Prefer matches whose date matches today (if CricAPI returns date); fall back to started.
-    const dateOk = matchDatePrefix ? date.startsWith(matchDatePrefix.toLowerCase()) : true;
-    if (!dateOk) continue;
-    if (!started && type) {
-      // if started isn't provided but type exists, still allow through if date matches
-    }
-
-    uniqueIds.push(String(uid));
-  }
-
-  // Deduplicate preserving order
-  const seen = new Set<string>();
-  return uniqueIds.filter((x) => (seen.has(x) ? false : (seen.add(x), true)));
 }
 
 function mergeBreakdown(into: Record<string, number>, add: Record<string, number>) {
@@ -209,10 +123,23 @@ export async function GET(req: NextRequest) {
     const envDate = (process.env.CRICAPI_DAILY_MATCH_DATE ?? "").trim();
     const matchDatePrefix = (envDate || yyyyMmDd(today)).slice(0, 10);
     const yesterdayPrefix = yyyyMmDd(new Date(today.getTime() - 24 * 60 * 60 * 1000)).slice(0, 10);
-    const seriesSubstrings = parseCsv(
-      process.env.CRICAPI_IPL_SERIES_SUBSTRINGS ?? "indian premier league",
-    );
+    const seriesIdFilter = (process.env.CRICAPI_IPL_SERIES_ID ?? "").trim() || null;
+    const seriesSubstringsFromEnv = parseCsv(process.env.CRICAPI_IPL_SERIES_SUBSTRINGS ?? "");
+    const seriesSubstrings =
+      seriesSubstringsFromEnv.length > 0
+        ? seriesSubstringsFromEnv
+        : seriesIdFilter
+          ? []
+          : ["indian premier league"];
     const teamSubstrings = parseCsv(process.env.CRICAPI_IPL_TEAM_SUBSTRINGS ?? "");
+
+    const discover = (raw: unknown, datePrefix: string) =>
+      extractMatchIdsFromCurrentMatchesJson(raw, {
+        matchDatePrefix: datePrefix,
+        teamSubstrings,
+        seriesSubstrings,
+        seriesIdFilter,
+      });
 
     // Discovery: try a few pages since CricAPI is offset-based.
     const raws: unknown[] = [];
@@ -220,18 +147,18 @@ export async function GET(req: NextRequest) {
       // eslint-disable-next-line no-await-in-loop
       const r = await fetchCurrentMatchesFromCricApi(cricApiKey, offset);
       raws.push(r);
-      matchIds.push(...extractUniqueIdsFromCurrentMatches(r, matchDatePrefix, teamSubstrings, seriesSubstrings));
+      matchIds.push(...discover(r, matchDatePrefix));
     }
     // Fallback 1: if match ended after midnight / date mismatch, try yesterday.
     if (!matchIds.length) {
       for (const r of raws) {
-        matchIds.push(...extractUniqueIdsFromCurrentMatches(r, yesterdayPrefix, teamSubstrings, seriesSubstrings));
+        matchIds.push(...discover(r, yesterdayPrefix));
       }
     }
     // Fallback 2: if CricAPI date format differs, retry without date filtering.
     if (!matchIds.length) {
       for (const r of raws) {
-        matchIds.push(...extractUniqueIdsFromCurrentMatches(r, "", teamSubstrings, seriesSubstrings));
+        matchIds.push(...discover(r, ""));
       }
     }
     // Dedup across pages.
@@ -255,6 +182,7 @@ export async function GET(req: NextRequest) {
             name: mm["name"] ?? mm["title"] ?? null,
             date: mm["date"] ?? null,
             dateTimeGMT: mm["dateTimeGMT"] ?? null,
+            series_id: mm["series_id"] ?? mm["seriesId"] ?? null,
             type: mm["type"] ?? null,
             matchType: mm["matchType"] ?? null,
             matchStarted: mm["matchStarted"] ?? null,
@@ -272,6 +200,7 @@ export async function GET(req: NextRequest) {
         stage: "discovery",
         match_date_prefix: matchDatePrefix,
         yesterday_date_prefix: yesterdayPrefix,
+        series_id_filter: seriesIdFilter,
         series_substrings: seriesSubstrings,
         team_substrings: teamSubstrings,
         discovered_match_ids: matchIds,
@@ -285,7 +214,7 @@ export async function GET(req: NextRequest) {
     return json(
       {
         error: "No IPL match ids found for today via currentMatches",
-        fix: "Either set CRICAPI_DAILY_MATCH_IDS explicitly, or adjust CRICAPI_IPL_SERIES_SUBSTRINGS (e.g. indian premier league). Optional: CRICAPI_IPL_TEAM_SUBSTRINGS.",
+        fix: "Either set CRICAPI_DAILY_MATCH_IDS, or CRICAPI_IPL_SERIES_ID (CricAPI series_id for IPL), or CRICAPI_IPL_SERIES_SUBSTRINGS. Optional: CRICAPI_IPL_TEAM_SUBSTRINGS.",
       },
       { status: 400 },
     );
