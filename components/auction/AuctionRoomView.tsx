@@ -44,6 +44,7 @@ export function AuctionRoomView({
   const [mySquad, setMySquad] = useState<PlayerRow[]>([]);
   const [soldOverlay, setSoldOverlay] = useState<{ open: boolean; label: string }>({ open: false, label: "" });
   const prevTick = useRef<number | null>(null);
+  const prevTimeLeftForToast = useRef<number | null>(null);
 
   useEffect(() => {
     if (!loading && room && room.status !== "live") {
@@ -112,8 +113,11 @@ export function AuctionRoomView({
   }, [room?.current_bidder_team_id, teams]);
 
   useEffect(() => {
-    if (timeLeft === 0 && isHost && room?.status === "live") {
-      toast.message("Timer at 0 — finalize the lot (Sold / Unsold).");
+    const was = prevTimeLeftForToast.current;
+    prevTimeLeftForToast.current = timeLeft;
+    // Only on transition into 0 — not on every realtime room update while stuck at 0
+    if (was !== null && was > 0 && timeLeft === 0 && isHost && room?.status === "live") {
+      toast.message("Timer at 0 — finalize the lot (Sold / Unsold).", { id: "auction-timer-zero" });
     }
   }, [timeLeft, isHost, room?.status]);
 

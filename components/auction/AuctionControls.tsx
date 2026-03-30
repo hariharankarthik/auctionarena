@@ -15,7 +15,11 @@ export function AuctionControls({
 }) {
   const [loading, setLoading] = useState<string | null>(null);
 
-  async function post(url: string, body: object): Promise<Record<string, unknown> | null> {
+  async function post(
+    url: string,
+    body: object,
+    opts?: { successToast?: string },
+  ): Promise<Record<string, unknown> | null> {
     setLoading(url);
     try {
       const res = await fetch(url, {
@@ -25,10 +29,12 @@ export function AuctionControls({
       });
       const data = (await res.json()) as Record<string, unknown>;
       if (!res.ok) throw new Error(String(data.error ?? "Request failed"));
-      toast.success("Updated");
+      if (opts?.successToast) {
+        toast.success(opts.successToast, { id: "host-auction" });
+      }
       return data;
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(e instanceof Error ? e.message : "Failed", { id: "host-auction-error" });
       return null;
     } finally {
       setLoading(null);
@@ -46,7 +52,7 @@ export function AuctionControls({
         size="sm"
         variant="secondary"
         disabled={!!loading}
-        onClick={() => void post("/api/auction/pause", { room_id: roomId, paused: true })}
+        onClick={() => void post("/api/auction/pause", { room_id: roomId, paused: true }, { successToast: "Auction paused" })}
       >
         Pause
       </Button>
@@ -54,7 +60,9 @@ export function AuctionControls({
         size="sm"
         variant="secondary"
         disabled={!!loading}
-        onClick={() => void post("/api/auction/pause", { room_id: roomId, paused: false })}
+        onClick={() =>
+          void post("/api/auction/pause", { room_id: roomId, paused: false }, { successToast: "Auction live" })
+        }
       >
         Resume
       </Button>
@@ -74,7 +82,9 @@ export function AuctionControls({
         size="sm"
         variant="outline"
         disabled={!!loading}
-        onClick={() => void post("/api/auction/next-player", { room_id: roomId })}
+        onClick={() =>
+          void post("/api/auction/next-player", { room_id: roomId }, { successToast: "Skipped to next player" })
+        }
       >
         Next
       </Button>
