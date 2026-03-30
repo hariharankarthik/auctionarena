@@ -105,6 +105,11 @@ function mergeBreakdown(into: Record<string, number>, add: Record<string, number
  * Match discovery (listing today's matches) is intentionally not built yet.
  */
 export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get('Authorization');
+  
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const cronSecret = process.env.CRON_SECRET;
@@ -270,4 +275,3 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ success: true, synced_matches: matchIds.length, updated: updatedTotal });
 }
-
