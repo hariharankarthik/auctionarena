@@ -112,6 +112,41 @@ export async function POST(req: NextRequest) {
       extracted = mergeBowlingFromCricApiJson(extracted, raw);
       cricExtractedCount = extracted.length;
       cricSampleNames = extracted.slice(0, 25).map((e) => e.playerName);
+
+      if (cricExtractedCount === 0) {
+        const summarize = (payload: unknown) => {
+          if (!payload || typeof payload !== "object") return null;
+          const o = payload as Record<string, unknown>;
+          const data = o.data && typeof o.data === "object" ? (o.data as Record<string, unknown>) : null;
+          const inningsTop = Array.isArray(o.innings) ? o.innings.length : null;
+          const scoreTop = Array.isArray(o.score) ? o.score.length : null;
+
+          return {
+            top_level_keys: Object.keys(o).slice(0, 40),
+            data_present: Boolean(data),
+            data_keys: data ? Object.keys(data).slice(0, 40) : [],
+            innings_len: data && Array.isArray(data.innings) ? data.innings.length : null,
+            score_len: data && Array.isArray(data.score) ? data.score.length : null,
+            innings_top_len: inningsTop,
+            score_top_len: scoreTop,
+          };
+        };
+
+        return NextResponse.json(
+          {
+            error:
+              "CricAPI scorecard had no batting rows that matched our parser. We fetched the scorecard successfully, but parsing found extracted_batters = 0.",
+            extracted_batters: cricExtractedCount,
+            sample_cricapi_names: cricSampleNames,
+            unmatched_names: [],
+            hint:
+              "The payload structure for this scorecard differs from what we expect. Check the returned scorecard_shape and we’ll tune the extractor to match.",
+            scorecard_shape: summarize(raw),
+          },
+          { status: 400 },
+        );
+      }
+
       const mapped = await mapCricApiNamesToPerformances(supabase, league.sport_id, extracted);
       performances = mapped.performances;
       unmatchedNames = mapped.unmatched.length ? mapped.unmatched : undefined;
