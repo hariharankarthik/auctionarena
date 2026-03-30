@@ -35,12 +35,14 @@ export function LineupPanel({
     vc: string | null;
     at: number;
   } | null>(null);
+  const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     setXi(new Set(initialXi));
     setC(captainPlayerId);
     setVc(viceCaptainPlayerId);
     setSaved(null);
+    setLocked(false);
   }, [teamId, captainPlayerId, viceCaptainPlayerId, initialXi]);
 
   const squadIds = useMemo(() => new Set(players.map((p) => p.playerId)), [players]);
@@ -94,6 +96,7 @@ export function LineupPanel({
       if (!res.ok) throw new Error(data.error || "Save failed");
       toast.success("Lineup saved");
       setSaved({ xi: xiArr, c, vc, at: Date.now() });
+      setLocked(true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     } finally {
@@ -129,10 +132,11 @@ export function LineupPanel({
                   : "border-neutral-800 bg-neutral-950/40"
               }`}
             >
-              <label className="flex flex-1 cursor-pointer items-center gap-2">
+              <label className={`flex flex-1 items-center gap-2 ${locked ? "cursor-default" : "cursor-pointer"}`}>
                 <input
                   type="checkbox"
                   checked={on}
+                  disabled={locked}
                   onChange={() => toggle(p.playerId)}
                   className="h-4 w-4 rounded border-neutral-600 text-emerald-500"
                 />
@@ -146,10 +150,11 @@ export function LineupPanel({
                   <button
                     type="button"
                     onClick={() => setCaptain(p.playerId)}
+                    disabled={locked}
                     className={`rounded-full px-2 py-1 font-semibold ring-1 transition-colors ${
                       isC
                         ? "bg-emerald-500/15 text-emerald-200 ring-emerald-500/30"
-                        : "bg-neutral-900/40 text-neutral-400 ring-neutral-700/80 hover:text-neutral-200"
+                        : "bg-neutral-900/40 text-neutral-400 ring-neutral-700/80 hover:text-neutral-200 disabled:hover:text-neutral-400"
                     }`}
                     title={isVC ? "Captain and vice-captain must be different" : "Set as captain"}
                   >
@@ -158,10 +163,11 @@ export function LineupPanel({
                   <button
                     type="button"
                     onClick={() => setViceCaptain(p.playerId)}
+                    disabled={locked}
                     className={`rounded-full px-2 py-1 font-semibold ring-1 transition-colors ${
                       isVC
                         ? "bg-sky-500/15 text-sky-200 ring-sky-500/30"
-                        : "bg-neutral-900/40 text-neutral-400 ring-neutral-700/80 hover:text-neutral-200"
+                        : "bg-neutral-900/40 text-neutral-400 ring-neutral-700/80 hover:text-neutral-200 disabled:hover:text-neutral-400"
                     }`}
                     title={isC ? "Captain and vice-captain must be different" : "Set as vice-captain"}
                   >
@@ -175,8 +181,17 @@ export function LineupPanel({
       </ul>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-neutral-800/80 p-4">
-        <Button type="button" size="sm" disabled={saving} onClick={() => void save()}>
+        <Button type="button" size="sm" disabled={saving || locked} onClick={() => void save()}>
           {saving ? "Saving…" : "Save lineup"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={saving || !locked}
+          onClick={() => setLocked(false)}
+        >
+          Edit lineup
         </Button>
         <span className="text-xs text-neutral-500">Squad size {squadIds.size}</span>
         {c && vc ? (
