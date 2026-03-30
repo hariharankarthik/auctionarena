@@ -1,0 +1,37 @@
+import type { SportConfig } from "./types";
+
+export const IPL_2026: SportConfig = {
+  id: "ipl_2026",
+  sportType: "cricket",
+  displayName: "IPL 2026",
+  currency: { symbol: "₹", unit: "Cr", multiplier: 100 },
+  purse: { default: 12000, min: 5000, max: 15000 },
+  timer: { default: 30, min: 10, max: 60 },
+  roster: {
+    maxTeams: 10,
+    maxPlayers: 25,
+    minPlayers: 18,
+    roles: ["BAT", "BOWL", "ALL", "WK"],
+    positionMins: { BAT: 3, BOWL: 3, ALL: 1, WK: 1 },
+    specialRules: [{ type: "max_foreign", field: "is_overseas", limit: 8, label: "Overseas players" }],
+  },
+  scoring: [
+    { action: "run", label: "Run scored", points: 1 },
+    { action: "four", label: "Boundary", points: 1 },
+    { action: "six", label: "Six", points: 2 },
+    { action: "fifty", label: "Half-century", points: 8 },
+    { action: "century", label: "Century", points: 16 },
+    { action: "duck", label: "Duck", points: -2, condition: "BAT,WK,ALL" },
+    { action: "wicket", label: "Wicket", points: 25 },
+    { action: "maiden", label: "Maiden over", points: 8 },
+    { action: "four_wickets", label: "4-wicket haul", points: 8 },
+    { action: "five_wickets", label: "5-wicket haul", points: 16 },
+    { action: "catch", label: "Catch", points: 8 },
+    { action: "stumping", label: "Stumping", points: 12 },
+    { action: "run_out_direct", label: "Direct run out", points: 12 },
+    { action: "run_out_indirect", label: "Run out (thrower)", points: 6 },
+    { action: "playing_xi", label: "In playing XI", points: 4 },
+  ],
+  tiers: ["marquee", "set_1", "set_2", "set_3"],
+  bidIncrements: [5, 10, 20, 25, 50, 100],
+};

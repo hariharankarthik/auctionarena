@@ -35,6 +35,13 @@ npm run dev
 
 Requires **Node.js 20+**.
 
+## Supabase
+
+1. Create a project and run SQL in order: `supabase/migrations/001_initial_schema.sql`, then `002_seed_ipl_players.sql` (SQL editor or `supabase db push`).
+2. **Auth → URL configuration:** set Site URL to your app origin; add redirect `https://<your-domain>/auth/callback` (and `http://localhost:3000/auth/callback` for dev).
+3. Enable **Google** (or other) providers as needed.
+4. Confirm **Realtime** includes `auction_rooms`, `auction_teams`, `bids`, `auction_results`, `fantasy_scores` (migration adds the first four + scores).
+
 ## Deploy
 
-Connect this GitHub repo to Vercel and add Supabase / CricAPI environment variables in the Vercel project settings.
+Connect this GitHub repo to Vercel and add Supabase (and optional CricAPI) environment variables in the Vercel project settings.

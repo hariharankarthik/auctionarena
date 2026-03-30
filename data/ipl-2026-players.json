@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Virat Kohli",
+    "nationality": "India",
+    "is_overseas": false,
+    "role": "BAT",
+    "base_price": 200,
+    "tier": "marquee",
+    "stats": { "matches": 237, "runs": 7263, "average": 37.25, "strike_rate": 130.41 },
+    "image_url": "/images/players/virat-kohli.jpg"
+  },
+  {
+    "name": "Rashid Khan",
+    "nationality": "Afghanistan",
+    "is_overseas": true,
+    "role": "BOWL",
+    "base_price": 190,
+    "tier": "marquee",
+    "stats": { "wickets": 140 },
+    "image_url": null
+  }
+]
