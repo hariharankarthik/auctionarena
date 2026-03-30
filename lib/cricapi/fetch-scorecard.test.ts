@@ -1,5 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { extractPerformancesFromCricApiJson } from "./fetch-scorecard";
+import { assertCricApiScorecardPayload, extractPerformancesFromCricApiJson } from "./fetch-scorecard";
+
+describe("assertCricApiScorecardPayload", () => {
+  it("throws with reason when data is missing", () => {
+    expect(() =>
+      assertCricApiScorecardPayload({
+        apikey: "x",
+        status: "failure",
+        reason: "Your limit is over.",
+      }),
+    ).toThrow("Your limit is over.");
+  });
+
+  it("throws failure status without reason", () => {
+    expect(() => assertCricApiScorecardPayload({ status: "failure" })).toThrow("failure status");
+  });
+
+  it("throws when only reason is set (no data)", () => {
+    expect(() => assertCricApiScorecardPayload({ reason: "Invalid id" })).toThrow("CricAPI: Invalid id");
+  });
+
+  it("allows success payload with data", () => {
+    expect(() => assertCricApiScorecardPayload({ status: "success", data: { innings: [] } })).not.toThrow();
+  });
+});
 
 describe("extractPerformancesFromCricApiJson", () => {
   it("extracts batting rows even when `batsman` key is missing", () => {

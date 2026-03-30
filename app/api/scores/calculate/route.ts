@@ -121,8 +121,12 @@ export async function POST(req: NextRequest) {
           const inningsTop = Array.isArray(o.innings) ? o.innings.length : null;
           const scoreTop = Array.isArray(o.score) ? o.score.length : null;
 
+          const reasonVal = o.reason;
           return {
             top_level_keys: Object.keys(o).slice(0, 40),
+            cricapi_status: o.status !== undefined ? o.status : null,
+            cricapi_reason:
+              typeof reasonVal === "string" ? reasonVal.slice(0, 500) : reasonVal != null ? String(reasonVal).slice(0, 500) : null,
             data_present: Boolean(data),
             data_keys: data ? Object.keys(data).slice(0, 40) : [],
             innings_len: data && Array.isArray(data.innings) ? data.innings.length : null,

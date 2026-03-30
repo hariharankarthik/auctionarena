@@ -3,6 +3,37 @@ import { parseCricApiMatchUuid } from "@/lib/cricapi/match-id";
 
 const BASE = "https://api.cricapi.com/v1";
 
+/**
+ * CricAPI often returns HTTP 200 with `{ status, reason }` and no `data` when quota/key/plan blocks the call.
+ * Fail fast with `reason` instead of treating it like an empty scorecard.
+ */
+export function assertCricApiScorecardPayload(payload: unknown): void {
+  if (payload == null || typeof payload !== "object") {
+    throw new Error("CricAPI returned an empty or invalid JSON body.");
+  }
+  const o = payload as Record<string, unknown>;
+  const reason = o.reason != null ? String(o.reason).trim() : "";
+  const statusRaw = o.status;
+  const status = typeof statusRaw === "string" ? statusRaw.toLowerCase() : "";
+
+  if (status === "failure" || status === "error") {
+    throw new Error(reason || "CricAPI returned a failure status.");
+  }
+
+  const data = o.data;
+  if (data === undefined || data === null) {
+    if (reason) {
+      throw new Error(`CricAPI: ${reason}`);
+    }
+    if (status && status !== "success") {
+      throw new Error(`CricAPI returned status "${String(statusRaw)}" with no scorecard data.`);
+    }
+    throw new Error(
+      "CricAPI returned no scorecard data (check API key, credits, and match_scorecard access).",
+    );
+  }
+}
+
 export type CricApiMappedPerformance = {
   playerName: string;
   stats: PlayerMatchStats;
@@ -200,7 +231,9 @@ export async function fetchCricApiScorecardJson(matchId: string): Promise<unknow
     const t = await res.text();
     throw new Error(`CricAPI HTTP ${res.status}: ${t.slice(0, 200)}`);
   }
-  return res.json() as Promise<unknown>;
+  const json = (await res.json()) as unknown;
+  assertCricApiScorecardPayload(json);
+  return json;
 }
 
 /** Optional: merge bowling if present in payload (best-effort). */
