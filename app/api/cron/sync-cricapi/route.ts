@@ -120,11 +120,15 @@ export async function GET(req: NextRequest) {
   // Auth: allow Vercel Cron header, otherwise require your shared secret (token / header / Bearer).
   const isVercelCron = req.headers.get("x-vercel-cron") === "1";
   if (!isVercelCron) {
-    const provided =
+    let provided =
       req.nextUrl.searchParams.get("token") ??
       req.headers.get("x-cron-secret") ??
       req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
       null;
+    // Common mistake: passing `token=CRON_SECRET=...` instead of `token=...`
+    if (provided?.startsWith("CRON_SECRET=")) {
+      provided = provided.slice("CRON_SECRET=".length);
+    }
     if (!cronSecret || !provided || provided !== cronSecret) {
       return json({ error: "Forbidden" }, { status: 403 });
     }
@@ -166,12 +170,27 @@ export async function GET(req: NextRequest) {
     }
 
     if (debug) {
+      const obj = raw as Record<string, unknown>;
+      const matchesRaw = obj?.["matches"];
+      const matches: unknown[] = Array.isArray(matchesRaw) ? matchesRaw : [];
+      const sample_matches = matches.slice(0, 10).map((m) => {
+        const mm = (m && typeof m === "object" ? (m as Record<string, unknown>) : {}) as Record<string, unknown>;
+        return {
+          unique_id: mm["unique_id"] ?? mm["uniqueId"] ?? null,
+          team_1: mm["team-1"] ?? mm["team1"] ?? mm["team_1"] ?? null,
+          team_2: mm["team-2"] ?? mm["team2"] ?? mm["team_2"] ?? null,
+          date: mm["date"] ?? null,
+          type: mm["type"] ?? null,
+          matchStarted: mm["matchStarted"] ?? null,
+        };
+      });
       return json({
         debug: true,
         stage: "discovery",
         match_date_prefix: matchDatePrefix,
         team_substrings: teamSubstrings,
         discovered_match_ids: matchIds,
+        sample_matches,
       });
     }
   }

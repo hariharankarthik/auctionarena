@@ -47,6 +47,9 @@ export function LineupPanel({
 
   const squadIds = useMemo(() => new Set(players.map((p) => p.playerId)), [players]);
   const nameById = useMemo(() => new Map(players.map((p) => [p.playerId, p.name])), [players]);
+  const maxStarters = squadIds.size ? Math.min(MAX, squadIds.size) : 0;
+  /** Footer count: live while editing; frozen to last save while locked so it matches “Saved lineup”. */
+  const displayedStarterCount = locked && saved ? saved.xi.length : xi.size;
 
   if (!isOwner) return null;
 
@@ -68,8 +71,8 @@ export function LineupPanel({
         if (c === pid) setC(null);
         if (vc === pid) setVc(null);
       } else {
-        if (next.size >= MAX) {
-          toast.error(`At most ${MAX} starters`);
+        if (next.size >= maxStarters) {
+          toast.error(`At most ${maxStarters} starter${maxStarters === 1 ? "" : "s"}`);
           return prev;
         }
         next.add(pid);
@@ -110,11 +113,12 @@ export function LineupPanel({
         <div>
           <p className="text-sm font-semibold text-white">Starting XI</p>
           <p className="mt-1 text-xs text-neutral-400">
-            Choose up to {MAX}. Starters count for points; bench scores 0. Captain 2× · Vice-captain 1.5×.
+            Choose up to {maxStarters || MAX}. Starters count for points; bench scores 0. Captain 2× · Vice-captain
+            1.5×.
           </p>
         </div>
         <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200 ring-1 ring-emerald-500/20">
-          {xi.size}/{MAX} selected
+          {displayedStarterCount}/{maxStarters || MAX} selected
         </div>
       </div>
 
@@ -193,7 +197,15 @@ export function LineupPanel({
         >
           Edit lineup
         </Button>
-        <span className="text-xs text-neutral-500">Squad size {squadIds.size}</span>
+        <span className="text-xs text-neutral-500">
+          Starting XI:{" "}
+          <span className="font-medium text-neutral-300">
+            {displayedStarterCount}/{maxStarters || MAX}
+          </span>
+          {squadIds.size > 0 ? (
+            <span className="text-neutral-600"> · Auction squad {squadIds.size}</span>
+          ) : null}
+        </span>
         {c && vc ? (
           <span className="ml-auto text-xs text-neutral-500">
             Saved as: <span className="text-emerald-200">C</span> + <span className="text-sky-200">VC</span>
