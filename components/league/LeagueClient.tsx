@@ -71,6 +71,12 @@ export function LeagueClient({
         </Link>
         . Host can still run mock rows for demos; real matches use the fantasy engine via <code className="rounded bg-neutral-800 px-1">performances</code> in the API.
       </p>
+      {scores.length === 0 && !loading ? (
+        <div className="rounded-xl border border-neutral-800 bg-neutral-950/40 p-4 text-sm text-neutral-400">
+          No match scores yet. If Vercel Cron is configured, this page will populate after the next scheduled run. Otherwise the host can
+          fetch a CricAPI match id (or add a mock match row for demo).
+        </div>
+      ) : null}
       {isHost ? (
         <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-950/40 p-4">
           <p className="text-xs font-medium text-neutral-400">Host tools</p>

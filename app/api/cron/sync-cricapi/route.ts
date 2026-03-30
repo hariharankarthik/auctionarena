@@ -105,19 +105,22 @@ function mergeBreakdown(into: Record<string, number>, add: Record<string, number
  * Match discovery (listing today's matches) is intentionally not built yet.
  */
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('Authorization');
-  
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const cronSecret = process.env.CRON_SECRET;
   const cricApiKey = process.env.CRICAPI_KEY?.trim();
 
-  const provided = req.headers.get("x-cron-secret") ?? req.nextUrl.searchParams.get("token");
-  if (!cronSecret || !provided || provided !== cronSecret) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Auth: allow Vercel Cron header, otherwise require your shared secret (token / header / Bearer).
+  const isVercelCron = req.headers.get("x-vercel-cron") === "1";
+  if (!isVercelCron) {
+    const provided =
+      req.nextUrl.searchParams.get("token") ??
+      req.headers.get("x-cron-secret") ??
+      req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
+      null;
+    if (!cronSecret || !provided || provided !== cronSecret) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   if (!url || !serviceKey) {
