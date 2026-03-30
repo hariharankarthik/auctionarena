@@ -29,14 +29,22 @@ export function LineupPanel({
   const [c, setC] = useState<string | null>(captainPlayerId);
   const [vc, setVc] = useState<string | null>(viceCaptainPlayerId);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState<{
+    xi: string[];
+    c: string | null;
+    vc: string | null;
+    at: number;
+  } | null>(null);
 
   useEffect(() => {
     setXi(new Set(initialXi));
     setC(captainPlayerId);
     setVc(viceCaptainPlayerId);
+    setSaved(null);
   }, [teamId, captainPlayerId, viceCaptainPlayerId, initialXi]);
 
   const squadIds = useMemo(() => new Set(players.map((p) => p.playerId)), [players]);
+  const nameById = useMemo(() => new Map(players.map((p) => [p.playerId, p.name])), [players]);
 
   if (!isOwner) return null;
 
@@ -71,12 +79,13 @@ export function LineupPanel({
   async function save() {
     setSaving(true);
     try {
+      const xiArr = [...xi];
       const res = await fetch("/api/team/lineup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           team_id: teamId,
-          starting_xi_player_ids: [...xi],
+          starting_xi_player_ids: xiArr,
           captain_player_id: c,
           vice_captain_player_id: vc,
         }),
@@ -84,6 +93,7 @@ export function LineupPanel({
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error || "Save failed");
       toast.success("Lineup saved");
+      setSaved({ xi: xiArr, c, vc, at: Date.now() });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     } finally {
@@ -177,6 +187,34 @@ export function LineupPanel({
           <span className="ml-auto text-xs text-neutral-600">Pick C and VC from your starters (optional).</span>
         )}
       </div>
+
+      {saved ? (
+        <div className="border-t border-neutral-800/80 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">Saved lineup</p>
+          <p className="mt-2 text-sm text-neutral-200">
+            {saved.xi.length ? (
+              <span>
+                XI:{" "}
+                <span className="text-neutral-300">
+                  {saved.xi
+                    .map((id) => nameById.get(id) ?? id)
+                    .sort((a, b) => a.localeCompare(b))
+                    .join(" · ")}
+                </span>
+              </span>
+            ) : (
+              <span className="text-neutral-400">XI not set (full squad counts until you set one).</span>
+            )}
+          </p>
+          <p className="mt-2 text-sm text-neutral-400">
+            Captain:{" "}
+            <span className="font-medium text-emerald-200">{saved.c ? nameById.get(saved.c) ?? saved.c : "—"}</span>
+            <span className="mx-2 text-neutral-700">|</span>
+            Vice-captain:{" "}
+            <span className="font-medium text-sky-200">{saved.vc ? nameById.get(saved.vc) ?? saved.vc : "—"}</span>
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
