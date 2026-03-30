@@ -60,7 +60,6 @@ export function PracticeSandbox() {
   const [simTeams] = useState<TeamSim[]>(() => JSON.parse(JSON.stringify(INITIAL_TEAMS)) as TeamSim[]);
 
   const lot = LOTS[lotIndex % LOTS.length]!;
-  const player = { is_overseas: lot.is_overseas, role: lot.role };
 
   const pushLog = useCallback((line: string) => {
     setLog((prev) => [line, ...prev].slice(0, 14));
@@ -75,7 +74,7 @@ export function PracticeSandbox() {
         const bid = decideAiBid(
           {
             team: t,
-            player,
+            player: { is_overseas: lot.is_overseas, role: lot.role },
             currentBid: next,
             basePrice: lot.base,
             config: IPL_2026,
@@ -91,7 +90,7 @@ export function PracticeSandbox() {
       if (lines.length) setLog((prev) => [...lines, ...prev].slice(0, 14));
       return next;
     });
-  }, [difficulty, lot.base, player, simTeams]);
+  }, [difficulty, lot.base, lot.is_overseas, lot.role, simTeams]);
 
   const runAiTickRef = useRef(runAiTick);
   runAiTickRef.current = runAiTick;
