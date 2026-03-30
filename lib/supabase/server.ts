@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { SupabaseCookieToSet } from "@/lib/supabase/cookie-types";
+import { resolveSupabasePublishableKey } from "@/lib/supabase/env";
 
 const placeholderUrl = "https://placeholder.supabase.co";
 const placeholderKey =
@@ -9,7 +10,7 @@ const placeholderKey =
 export async function createClient() {
   const cookieStore = await cookies();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || placeholderUrl;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || placeholderKey;
+  const key = resolveSupabasePublishableKey() || placeholderKey;
 
   return createServerClient(url, key, {
     cookies: {

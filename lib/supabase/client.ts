@@ -1,4 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr";
+import { resolveSupabasePublishableKey } from "@/lib/supabase/env";
 
 const placeholderUrl = "https://placeholder.supabase.co";
 const placeholderKey =
@@ -6,6 +7,6 @@ const placeholderKey =
 
 export function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || placeholderUrl;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || placeholderKey;
+  const key = resolveSupabasePublishableKey() || placeholderKey;
   return createBrowserClient(url, key);
 }

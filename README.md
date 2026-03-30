@@ -16,7 +16,7 @@ Open this folder as your **Cursor / VS Code project root**. Requires **Node.js 2
 2. Wait until the project is **healthy**.
 3. Open **Project Settings → API** and copy:
    - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
-   - **`anon` `public` key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - **Client key:** either the legacy **`anon` `public` (JWT)** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`, or the newer **publishable** key → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` (the app accepts either).
 4. You do **not** need the **service role** key for this app’s current routes (optional in `.env.example`).
 
 ### B. Apply database schema and seed data

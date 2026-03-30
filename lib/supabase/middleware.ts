@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { safeNextPath } from "@/lib/safe-path";
 import type { SupabaseCookieToSet } from "@/lib/supabase/cookie-types";
+import { resolveSupabasePublishableKey } from "@/lib/supabase/env";
 
 const PROTECTED_PREFIXES = ["/dashboard", "/room", "/practice", "/profile"];
 
@@ -9,7 +10,7 @@ export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const key = resolveSupabasePublishableKey();
 
   if (!url || !key) {
     return response;
