@@ -8,6 +8,7 @@ import {
   mergeBowlingFromCricApiJson,
 } from "@/lib/cricapi/fetch-scorecard";
 import { fetchScorecardWithFallback } from "@/lib/scoring/fetch-with-fallback";
+import { parseCricsheetMatch } from "@/lib/cricsheet/fetch-scorecard";
 import { CricApiError } from "@/lib/cricapi/errors";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -46,6 +47,107 @@ function mergeBreakdown(into: Record<string, number>, add: Record<string, number
   for (const [k, v] of Object.entries(add)) {
     into[k] = (into[k] ?? 0) + v;
   }
+}
+
+const CRICSHEET_RECENT_URL = "https://cricsheet.org/downloads/recently_added_2_json.zip";
+
+/**
+ * Download Cricsheet's "recently added" ZIP (matches from last 2 days) and
+ * import any IPL matches into the `cricsheet_cache` table. This runs before
+ * the CricAPI scorecard loop so the cache is warm.
+ *
+ * Fails silently — Cricsheet unavailability should never block the cron.
+ */
+async function syncRecentCricsheetMatches(
+  supabase: ReturnType<typeof createServerClient>,
+): Promise<number> {
+  try {
+    const res = await fetch(CRICSHEET_RECENT_URL, { cache: "no-store" });
+    if (!res.ok) return 0;
+
+    const arrayBuf = await res.arrayBuffer();
+
+    // Use DecompressionStream (Web API) to handle the ZIP.
+    // Vercel Node 18+ supports this, but ZIP is not a single stream —
+    // we need to parse the ZIP format. Use a minimal approach:
+    // The ZIP central directory is at the end; for simplicity, we use
+    // the dynamic import of Node's built-in zlib + manual ZIP parsing.
+    const { unzipSync } = await import("node:zlib");
+    const buf = Buffer.from(arrayBuf);
+
+    // Minimal ZIP parser: find local file headers (PK\x03\x04)
+    const files = parseZipEntries(buf);
+    let imported = 0;
+
+    for (const { name, data } of files) {
+      if (!name.endsWith(".json") || name === "README.txt") continue;
+      try {
+        const raw = JSON.parse(data.toString("utf-8"));
+        const info = raw.info;
+        const eventName = (info?.event?.name ?? "").toLowerCase();
+        if (!eventName.includes("indian premier league") && !eventName.includes("ipl")) continue;
+
+        const performances = parseCricsheetMatch(raw);
+        const matchId = name.replace(".json", "");
+
+        await supabase.from("cricsheet_cache").upsert(
+          {
+            match_id: matchId,
+            season: String(info.season ?? ""),
+            teams: info.teams,
+            event_name: info.event?.name ?? "",
+            match_date: info.dates?.[0] ?? "",
+            performances,
+          },
+          { onConflict: "match_id" },
+        );
+        imported++;
+      } catch {
+        // Skip unparseable files
+      }
+    }
+    return imported;
+  } catch {
+    // Cricsheet unavailable — not fatal
+    return 0;
+  }
+}
+
+/**
+ * Minimal ZIP entry parser — extracts uncompressed file entries from a ZIP
+ * buffer. Handles STORE (method 0) and DEFLATE (method 8).
+ */
+function parseZipEntries(buf: Buffer): Array<{ name: string; data: Buffer }> {
+  const entries: Array<{ name: string; data: Buffer }> = [];
+  let offset = 0;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const zlib = require("node:zlib");
+
+  while (offset + 30 <= buf.length) {
+    // Local file header signature = PK\x03\x04
+    if (buf.readUInt32LE(offset) !== 0x04034b50) break;
+    const method = buf.readUInt16LE(offset + 8);
+    const compSize = buf.readUInt32LE(offset + 18);
+    const nameLen = buf.readUInt16LE(offset + 26);
+    const extraLen = buf.readUInt16LE(offset + 28);
+    const name = buf.subarray(offset + 30, offset + 30 + nameLen).toString("utf-8");
+    const dataStart = offset + 30 + nameLen + extraLen;
+    const compData = buf.subarray(dataStart, dataStart + compSize);
+
+    let fileData: Buffer;
+    if (method === 0) {
+      fileData = compData;
+    } else if (method === 8) {
+      fileData = zlib.inflateRawSync(compData);
+    } else {
+      offset = dataStart + compSize;
+      continue;
+    }
+
+    entries.push({ name, data: fileData });
+    offset = dataStart + compSize;
+  }
+  return entries;
 }
 
 /**
@@ -246,6 +348,11 @@ export async function GET(req: NextRequest) {
     }),
   );
 
+  // Auto-sync Cricsheet's recently added matches into cache.
+  // This ensures the Cricsheet cache is warm BEFORE we try scorecard fetches,
+  // so fetchScorecardWithFallback can find them by match date.
+  const cricsheetImported = await syncRecentCricsheetMatches(supabaseAdmin);
+
   let updatedTotal = 0;
 
   for (const matchId of matchIds) {
@@ -266,8 +373,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Fetch scorecard once per match id (with Cricsheet fallback on rate-limit)
-    const result = await fetchScorecardWithFallback(matchId, supabaseAdmin);
+    // Fetch scorecard: try Cricsheet cache by date first, fall back to CricAPI
+    const result = await fetchScorecardWithFallback({
+      matchId,
+      matchDate: cronMatchDate,
+      supabase: supabaseAdmin,
+    });
     const extracted = result.performances;
 
     for (const league of leagues ?? []) {
@@ -347,6 +458,7 @@ export async function GET(req: NextRequest) {
     success: true,
     synced_matches: matchIds.length,
     updated: updatedTotal,
+    cricsheet_imported: cricsheetImported,
     cron_match_date: cronMatchDate,
   });
 }

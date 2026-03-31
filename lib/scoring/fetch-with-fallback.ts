@@ -1,18 +1,26 @@
 /**
  * Scorecard fetcher with automatic fallback.
  *
- * **Primary: Cricsheet** (cached in `cricsheet_cache` table) — free, no rate
- * limits, ball-by-ball detail, updated within 24–48h of match completion.
+ * **Primary: CricAPI** — has data in real-time (live/same-day), but limited
+ * to 100 req/day on the free tier.
  *
- * **Fallback: CricAPI** — used only when Cricsheet data isn't available yet
- * (e.g., same-day scoring). This preserves the 100 req/day free-tier budget.
+ * **Backfill: Cricsheet** — free, unlimited, ball-by-ball data available
+ * 24–48h after match completion. Used to backfill matches that CricAPI
+ * couldn't serve due to rate-limiting.
  *
- * If CricAPI also fails with a rate-limit error, the error is surfaced with
- * a friendly message via the error classifier.
+ * Flow:
+ * 1. Try CricAPI (real-time data)
+ * 2. If rate-limited → check Cricsheet cache (populated by cron auto-sync)
+ * 3. If Cricsheet also missing → throw rate-limit error (match stays pending
+ *    for backfill on next cron run)
  *
- * Usage in API routes:
+ * Usage:
  * ```ts
- * const { performances, provider } = await fetchScorecardWithFallback(matchId, supabase);
+ * const { performances, provider } = await fetchScorecardWithFallback({
+ *   matchId,
+ *   matchDate: "2026-03-30",
+ *   supabase,
+ * });
  * ```
  */
 
@@ -24,66 +32,90 @@ import {
 } from "@/lib/cricapi/fetch-scorecard";
 import { isCricApiError } from "@/lib/cricapi/errors";
 
+type FallbackOpts = {
+  /** CricAPI match UUID (used for CricAPI call). */
+  matchId: string;
+  /** Match date YYYY-MM-DD (used for Cricsheet cache lookup). */
+  matchDate?: string;
+  /** Supabase client for querying cricsheet_cache. */
+  supabase?: SupabaseLike | null;
+};
+
 type FallbackResult = {
   performances: CricApiMappedPerformance[];
-  provider: "cricsheet_cache" | "cricapi";
+  provider: "cricapi" | "cricsheet_cache";
   raw?: unknown;
 };
+
+type SupabaseLike = { from: (table: string) => unknown };
 
 /**
  * Fetch scorecard with automatic provider selection.
  *
- * 1. Try Cricsheet cache (free, unlimited)
- * 2. Fall back to CricAPI (rate-limited, 100 req/day free tier)
- *
- * @param matchId  CricAPI match UUID or Cricsheet numeric ID
- * @param supabase Supabase client (used to query cached Cricsheet data)
+ * 1. Try CricAPI (primary — real-time data)
+ * 2. On rate-limit → try Cricsheet cache (backfill from previous cron sync)
+ * 3. If both miss → re-throw rate-limit error (match stays pending)
  */
 export async function fetchScorecardWithFallback(
-  matchId: string,
-  supabase?: { from: (table: string) => unknown } | null,
+  opts: FallbackOpts,
 ): Promise<FallbackResult> {
-  // 1. Try Cricsheet cache first (primary — free and unlimited)
-  if (supabase) {
-    const cached = await tryLoadCricsheetCache(supabase, matchId);
-    if (cached && cached.length > 0) {
-      return { performances: cached, provider: "cricsheet_cache" };
-    }
-  }
+  const { matchId, matchDate, supabase } = opts;
 
-  // 2. Fall back to CricAPI (secondary — rate-limited)
-  const raw = await fetchCricApiScorecardJson(matchId);
-  let extracted = extractPerformancesFromCricApiJson(raw);
-  extracted = mergeBowlingFromCricApiJson(extracted, raw);
-  return { performances: extracted, provider: "cricapi", raw };
+  try {
+    // 1. Try CricAPI first (primary — real-time)
+    const raw = await fetchCricApiScorecardJson(matchId);
+    let extracted = extractPerformancesFromCricApiJson(raw);
+    extracted = mergeBowlingFromCricApiJson(extracted, raw);
+    return { performances: extracted, provider: "cricapi", raw };
+  } catch (err) {
+    // Only fall back to Cricsheet for rate-limit errors
+    if (!isCricApiError(err) || err.classified.code !== "RATE_LIMIT") {
+      throw err;
+    }
+
+    // 2. CricAPI rate-limited → try Cricsheet cache (backfill data)
+    if (supabase && matchDate) {
+      const cached = await tryLoadCricsheetCache(supabase, matchDate);
+      if (cached && cached.length > 0) {
+        return { performances: cached, provider: "cricsheet_cache" };
+      }
+    }
+
+    // 3. Cricsheet also doesn't have data yet — re-throw
+    // The match stays un-scored; next cron run will auto-sync Cricsheet
+    // and retry.
+    throw err;
+  }
 }
 
 /**
  * Try to load pre-imported Cricsheet performances from the
- * `cricsheet_cache` table.
+ * `cricsheet_cache` table, matched by date.
+ *
+ * Cricsheet and CricAPI use completely different ID systems (ESPN numeric
+ * IDs vs CricAPI UUIDs), so we match by match date instead.
  */
 async function tryLoadCricsheetCache(
-  supabase: { from: (table: string) => unknown },
-  matchId: string,
+  supabase: SupabaseLike,
+  matchDate: string,
 ): Promise<CricApiMappedPerformance[] | null> {
   try {
-    // Query the cricsheet_cache table for pre-imported match data.
-    // Try both the raw matchId and a normalized version (Cricsheet uses
-    // numeric IDs while CricAPI uses UUIDs — the import script stores
-    // the Cricsheet numeric ID as match_id).
     const result = await (supabase.from("cricsheet_cache") as {
       select: (cols: string) => {
         eq: (col: string, val: string) => {
-          single: () => Promise<{ data: { performances: CricApiMappedPerformance[] } | null; error: unknown }>;
+          limit: (n: number) => Promise<{
+            data: Array<{ performances: CricApiMappedPerformance[] }> | null;
+            error: unknown;
+          }>;
         };
       };
     })
       .select("performances")
-      .eq("match_id", matchId)
-      .single();
+      .eq("match_date", matchDate)
+      .limit(1);
 
-    if (result.error || !result.data) return null;
-    return result.data.performances;
+    if (result.error || !result.data || result.data.length === 0) return null;
+    return result.data[0].performances;
   } catch {
     // Table may not exist yet — that's fine, just means no cache
     return null;

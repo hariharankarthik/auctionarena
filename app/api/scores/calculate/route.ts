@@ -149,7 +149,11 @@ export async function POST(req: NextRequest) {
   if (cricapi_match_id && String(cricapi_match_id).trim()) {
     cricapiUsed = true;
     try {
-      const result = await fetchScorecardWithFallback(effectiveMatchId, supabase);
+      const result = await fetchScorecardWithFallback({
+        matchId: effectiveMatchId,
+        matchDate: match_date,
+        supabase,
+      });
       const extracted = result.performances;
       dataSource = result.provider;
       cricExtractedCount = extracted.length;
