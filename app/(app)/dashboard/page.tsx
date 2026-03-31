@@ -17,7 +17,6 @@ export default async function DashboardPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const sp = (await searchParams) ?? {};
   const supabase = await createClient();
   const {
     data: { user },
