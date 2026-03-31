@@ -78,12 +78,21 @@ export function ResultsBody({
           text: "Our auction results are live.",
           url,
         });
-        return;
+        toast.success("Share sheet opened");
+        return true;
       }
-      await navigator.clipboard.writeText(url);
-      toast.success("Link copied to clipboard");
-    } catch {
-      toast.error("Share not available");
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link copied to clipboard");
+        return true;
+      }
+      // Last-resort fallback for browsers that block clipboard APIs.
+      window.prompt("Copy this link", url);
+      toast.message("Copy the link from the prompt");
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not share");
+      return false;
     }
   }, [roomName]);
 
@@ -97,7 +106,7 @@ export function ResultsBody({
             <Button type="button" variant="secondary" disabled={sharing} onClick={() => void shareImage()}>
               Share as image
             </Button>
-            <Button type="button" variant="outline" onClick={() => void shareNative()}>
+            <Button type="button" variant="secondary" onClick={() => void shareNative()}>
               Share link
             </Button>
             <Button asChild variant="outline">
