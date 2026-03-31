@@ -397,6 +397,15 @@ describe("aggregateCricsheetInnings", () => {
   });
 
   describe("extras handling", () => {
+    it("counts no-balls as batter balls faced, but not wides", () => {
+      const perfs = aggregateCricsheetInnings(FIXTURE_WITH_EXTRAS.innings);
+      const playerA = perfs.find((p) => p.playerName === "Player A");
+      expect(playerA).toBeDefined();
+      // Deliveries faced by batter: wide (no), 4 (yes), no-ball (yes), 2,0,0,0,byes(yes)
+      // = 7 balls faced (all except the wide)
+      expect(playerA!.stats.batting!.ballsFaced).toBe(7);
+    });
+
     it("does not count wides as legal deliveries for bowler", () => {
       const perfs = aggregateCricsheetInnings(FIXTURE_WITH_EXTRAS.innings);
       const bowlerX = perfs.find((p) => p.playerName === "Bowler X");

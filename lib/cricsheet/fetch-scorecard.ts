@@ -120,6 +120,11 @@ export function aggregateCricsheetInnings(
       overBowlerRuns.clear();
 
       for (const d of over.deliveries) {
+        // Wides do not count as a legal ball faced.
+        // No-balls DO count as balls faced for batting strike rate.
+        const isWide = Boolean(d.extras?.wides);
+        const isNoBall = Boolean(d.extras?.noballs);
+
         // --- Batting ---
         let bat = batters.get(d.batter);
         if (!bat) {
@@ -127,7 +132,7 @@ export function aggregateCricsheetInnings(
           batters.set(d.batter, bat);
         }
         bat.runs += d.runs.batter;
-        bat.balls += 1;
+        if (!isWide) bat.balls += 1;
         if (d.runs.batter === 4 && !d.runs.non_boundary) bat.fours += 1;
         if (d.runs.batter === 6) bat.sixes += 1;
 
@@ -143,10 +148,8 @@ export function aggregateCricsheetInnings(
           bowlers.set(d.bowler, bowl);
         }
 
-        // Wides and no-balls don't count as a legal delivery for the batter
-        // but DO count for bowler runs conceded
-        const isWide = Boolean(d.extras?.wides);
-        const isNoBall = Boolean(d.extras?.noballs);
+        // Wides and no-balls don't count as legal deliveries,
+        // but DO count for bowler runs conceded.
 
         if (!isWide && !isNoBall) {
           bowl.balls += 1;

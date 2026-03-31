@@ -3,13 +3,9 @@ import { scorePlayerMatch, type PlayerMatchStats } from "@/lib/fantasy-scoring";
 import { effectivePointsWithLineup } from "@/lib/fantasy-scoring/lineup-multipliers";
 import { extractMatchIdsFromCurrentMatchesJson } from "@/lib/cricapi/discover-match-ids";
 import { mapCricApiExtractedToPerformances } from "@/lib/cricapi/map-player-names";
-import {
-  extractPerformancesFromCricApiJson,
-  mergeBowlingFromCricApiJson,
-} from "@/lib/cricapi/fetch-scorecard";
 import { fetchScorecardWithFallback } from "@/lib/scoring/fetch-with-fallback";
 import { parseCricsheetMatch } from "@/lib/cricsheet/fetch-scorecard";
-import { CricApiError } from "@/lib/cricapi/errors";
+import { CricApiError, isCricApiError } from "@/lib/cricapi/errors";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -24,6 +20,18 @@ type ActiveLeagueRow = {
   id: string;
   room_id: string;
   sport_id: string;
+};
+
+type PendingSyncRow = {
+  id?: string;
+  match_id: string;
+  match_date: string;
+  teams?: string[] | null;
+  status: "pending" | "synced" | "failed";
+  source_preferred: "cricapi";
+  last_error_code?: string | null;
+  last_error_message?: string | null;
+  attempts?: number;
 };
 
 function parseCsv(s: string): string[] {
@@ -49,7 +57,141 @@ function mergeBreakdown(into: Record<string, number>, add: Record<string, number
   }
 }
 
+function mergeUniqueIds(base: string[], add: string[]): string[] {
+  const seen = new Set(base);
+  for (const id of add) {
+    if (!seen.has(id)) {
+      seen.add(id);
+      base.push(id);
+    }
+  }
+  return base;
+}
+
 const CRICSHEET_RECENT_URL = "https://cricsheet.org/downloads/recently_added_2_json.zip";
+
+type DiscoveredMatchMeta = {
+  teams: string[];
+  matchDate: string | null;
+};
+
+function collectMatchMetaById(raw: unknown): Map<string, DiscoveredMatchMeta> {
+  const out = new Map<string, DiscoveredMatchMeta>();
+  if (!raw || typeof raw !== "object") return out;
+  const obj = raw as Record<string, unknown>;
+  const rows = obj.matches ?? obj.data;
+  if (!Array.isArray(rows)) return out;
+
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const r = row as Record<string, unknown>;
+    const idRaw = r.unique_id ?? r.uniqueId ?? r.id ?? r.match_id ?? r.matchId;
+    if (!idRaw) continue;
+    const id = String(idRaw);
+
+    const teamInfoRaw = r.teamInfo ?? r.teaminfo ?? r.teamsInfo;
+    const teamsRaw = r.teams;
+    const names: string[] = [];
+
+    if (Array.isArray(teamInfoRaw)) {
+      for (const t of teamInfoRaw) {
+        if (typeof t === "string") names.push(t);
+        else if (t && typeof t === "object") {
+          const o = t as Record<string, unknown>;
+          const n = o.name ?? o.shortname ?? o.shortName ?? o.title ?? o.teamName;
+          if (n) names.push(String(n));
+        }
+      }
+    }
+    if (Array.isArray(teamsRaw) && names.length < 2) {
+      for (const t of teamsRaw) {
+        if (typeof t === "string") names.push(t);
+      }
+    }
+    const t1 = r["team-1"] ?? r.team1 ?? r.team_1;
+    const t2 = r["team-2"] ?? r.team2 ?? r.team_2;
+    if (t1 && names.length < 1) names.push(String(t1));
+    if (t2 && names.length < 2) names.push(String(t2));
+
+    const dateRaw = r.date ?? r.dateTimeGMT ?? r.dateTime ?? r.matchDate ?? r.match_datetime;
+    const dateStr = typeof dateRaw === "string" ? dateRaw.slice(0, 10) : null;
+
+    if (names.length >= 2) {
+      out.set(id, { teams: [names[0], names[1]], matchDate: dateStr });
+    }
+  }
+  return out;
+}
+
+async function loadPendingMatches(
+  supabase: ReturnType<typeof createServerClient>,
+  maxDate: string,
+): Promise<PendingSyncRow[]> {
+  const res = await supabase
+    .from("cricket_sync_tracker")
+    .select("match_id,match_date,teams,status,source_preferred,last_error_code,last_error_message,attempts")
+    .in("status", ["pending", "failed"])
+    .lte("match_date", maxDate)
+    .order("match_date", { ascending: true })
+    .limit(100);
+  if (res.error) return [];
+  return (res.data ?? []) as PendingSyncRow[];
+}
+
+async function markPending(
+  supabase: ReturnType<typeof createServerClient>,
+  row: PendingSyncRow,
+): Promise<void> {
+  const current = await supabase
+    .from("cricket_sync_tracker")
+    .select("attempts")
+    .eq("match_id", row.match_id)
+    .maybeSingle();
+  const attempts = (current.data?.attempts ?? 0) + 1;
+  await supabase.from("cricket_sync_tracker").upsert(
+    {
+      match_id: row.match_id,
+      match_date: row.match_date,
+      teams: row.teams ?? null,
+      source_preferred: "cricapi",
+      status: "pending",
+      last_error_code: row.last_error_code ?? null,
+      last_error_message: row.last_error_message ?? null,
+      attempts,
+      last_attempt_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "match_id" },
+  );
+}
+
+async function markSynced(
+  supabase: ReturnType<typeof createServerClient>,
+  row: PendingSyncRow,
+): Promise<void> {
+  const current = await supabase
+    .from("cricket_sync_tracker")
+    .select("attempts")
+    .eq("match_id", row.match_id)
+    .maybeSingle();
+  const attempts = current.data?.attempts ?? 0;
+  await supabase.from("cricket_sync_tracker").upsert(
+    {
+      match_id: row.match_id,
+      match_date: row.match_date,
+      teams: row.teams ?? null,
+      source_preferred: "cricapi",
+      attempts,
+      status: "synced",
+      last_error_code: null,
+      last_error_message: null,
+      resolved_at: new Date().toISOString(),
+      last_attempt_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "match_id" },
+  );
+}
 
 /**
  * Download Cricsheet's "recently added" ZIP (matches from last 2 days) and
@@ -67,12 +209,6 @@ async function syncRecentCricsheetMatches(
 
     const arrayBuf = await res.arrayBuffer();
 
-    // Use DecompressionStream (Web API) to handle the ZIP.
-    // Vercel Node 18+ supports this, but ZIP is not a single stream —
-    // we need to parse the ZIP format. Use a minimal approach:
-    // The ZIP central directory is at the end; for simplicity, we use
-    // the dynamic import of Node's built-in zlib + manual ZIP parsing.
-    const { unzipSync } = await import("node:zlib");
     const buf = Buffer.from(arrayBuf);
 
     // Minimal ZIP parser: find local file headers (PK\x03\x04)
@@ -214,7 +350,7 @@ export async function GET(req: NextRequest) {
   });
 
   const matchIdsRaw = process.env.CRICAPI_DAILY_MATCH_IDS ?? "";
-  let matchIds = parseCsv(matchIdsRaw);
+  const matchIds = parseCsv(matchIdsRaw);
 
   const envDateTrim = (process.env.CRICAPI_DAILY_MATCH_DATE ?? "").trim().slice(0, 10);
   const yyyyMmDd = (d: Date) => d.toISOString().slice(0, 10);
@@ -223,6 +359,7 @@ export async function GET(req: NextRequest) {
   const yesterdayOfAnchor = yyyyMmDd(
     new Date(new Date(`${cronMatchDate}T12:00:00.000Z`).getTime() - 24 * 60 * 60 * 1000),
   );
+  const discoveredMetaById = new Map<string, DiscoveredMatchMeta>();
 
   if (matchIds.length === 0) {
     if (!cricApiKey) {
@@ -249,29 +386,27 @@ export async function GET(req: NextRequest) {
         seriesIdFilter,
       });
 
-    // Discovery: try pages until we find matches (saves API calls vs always fetching 4 pages).
+    // Discovery: read all pages (0..3). Some days have 2+ matches and CricAPI
+    // may split same-day matches across offsets.
     const raws: unknown[] = [];
     for (const offset of [0, 1, 2, 3]) {
       const r = await fetchCurrentMatchesFromCricApi(cricApiKey, offset);
       raws.push(r);
-      matchIds.push(...discover(r, matchDatePrefix));
-      // Stop paging once we have matches — most IPL days have 1-2 matches on page 0.
-      if (matchIds.length > 0) break;
+      const ids = discover(r, matchDatePrefix);
+      mergeUniqueIds(matchIds, ids);
+      const mm = collectMatchMetaById(r);
+      for (const [id, meta] of mm.entries()) {
+        discoveredMetaById.set(id, meta);
+      }
     }
     // Fallback 1: if match ended after midnight / date mismatch, try yesterday.
     if (!matchIds.length) {
-      for (const r of raws) {
-        matchIds.push(...discover(r, yesterdayPrefix));
+        for (const r of raws) mergeUniqueIds(matchIds, discover(r, yesterdayPrefix));
       }
-    }
-    // Fallback 2: if CricAPI date format differs, retry without date filtering.
-    if (!matchIds.length) {
-      for (const r of raws) {
-        matchIds.push(...discover(r, ""));
+      // Fallback 2: if CricAPI date format differs, retry without date filtering.
+      if (!matchIds.length) {
+        for (const r of raws) mergeUniqueIds(matchIds, discover(r, ""));
       }
-    }
-    // Dedup across pages.
-    matchIds = [...new Set(matchIds)];
 
     if (debug) {
       const describe = (r: unknown) => {
@@ -353,9 +488,22 @@ export async function GET(req: NextRequest) {
   // so fetchScorecardWithFallback can find them by match date.
   const cricsheetImported = await syncRecentCricsheetMatches(supabaseAdmin);
 
+  // Include previously pending/failed matches so they can auto-backfill later.
+  const pendingRows = await loadPendingMatches(supabaseAdmin, cronMatchDate);
+  const pendingIds = pendingRows.map((r) => r.match_id);
+  mergeUniqueIds(matchIds, pendingIds);
+  const pendingById = new Map(pendingRows.map((r) => [r.match_id, r]));
+
   let updatedTotal = 0;
+  let pendingCount = 0;
+  let syncedFromPending = 0;
 
   for (const matchId of matchIds) {
+    const meta = discoveredMetaById.get(matchId);
+    const pendingMeta = pendingById.get(matchId);
+    const expectedTeams = meta?.teams ?? pendingMeta?.teams ?? undefined;
+    const effectiveMatchDate = meta?.matchDate ?? pendingMeta?.match_date ?? cronMatchDate;
+
     // Cache: scorecards don't change for completed matches.
     // If we've already written *any* fantasy_scores rows for this match id, skip API calls.
     // Use `?force=1` to bypass (e.g. backfill / fix name mappings).
@@ -369,17 +517,43 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: exErr.message }, { status: 500 });
       }
       if (existing && existing.length > 0) {
+        await markSynced(supabaseAdmin, {
+          match_id: matchId,
+          match_date: effectiveMatchDate,
+          teams: expectedTeams,
+          status: "synced",
+          source_preferred: "cricapi",
+        });
         continue;
       }
     }
 
-    // Fetch scorecard: try Cricsheet cache by date first, fall back to CricAPI
-    const result = await fetchScorecardWithFallback({
-      matchId,
-      matchDate: cronMatchDate,
-      supabase: supabaseAdmin,
-    });
-    const extracted = result.performances;
+    let extracted;
+    try {
+      // Fetch scorecard: primary CricAPI; on rate-limit use Cricsheet cache.
+      const result = await fetchScorecardWithFallback({
+        matchId,
+        matchDate: effectiveMatchDate,
+        expectedTeams,
+        supabase: supabaseAdmin,
+      });
+      extracted = result.performances;
+    } catch (e) {
+      if (isCricApiError(e) && e.classified.code === "RATE_LIMIT") {
+        pendingCount += 1;
+        await markPending(supabaseAdmin, {
+          match_id: matchId,
+          match_date: effectiveMatchDate,
+          teams: expectedTeams,
+          status: "pending",
+          source_preferred: "cricapi",
+          last_error_code: e.classified.code,
+          last_error_message: e.classified.friendlyMessage,
+        });
+        continue;
+      }
+      throw e;
+    }
 
     for (const league of leagues ?? []) {
       if (!league.room_id) continue;
@@ -436,7 +610,7 @@ export async function GET(req: NextRequest) {
           team_id: t.id,
           private_team_id: null as string | null,
           match_id: String(matchId),
-          match_date: cronMatchDate,
+          match_date: effectiveMatchDate,
           total_points: Math.round(b.total * 100) / 100,
           breakdown: {
             source: "cricapi_v1",
@@ -452,12 +626,23 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
     }
+
+    if (pendingById.has(matchId)) syncedFromPending += 1;
+    await markSynced(supabaseAdmin, {
+      match_id: matchId,
+      match_date: effectiveMatchDate,
+      teams: expectedTeams,
+      status: "synced",
+      source_preferred: "cricapi",
+    });
   }
 
   return json({
     success: true,
     synced_matches: matchIds.length,
     updated: updatedTotal,
+    pending: pendingCount,
+    synced_from_pending: syncedFromPending,
     cricsheet_imported: cricsheetImported,
     cron_match_date: cronMatchDate,
   });

@@ -7,10 +7,6 @@ import {
 import { effectivePointsWithLineup } from "@/lib/fantasy-scoring/lineup-multipliers";
 import { parseCricApiMatchUuid } from "@/lib/cricapi/match-id";
 import { mapCricApiExtractedToPerformances } from "@/lib/cricapi/map-player-names";
-import {
-  extractPerformancesFromCricApiJson,
-  mergeBowlingFromCricApiJson,
-} from "@/lib/cricapi/fetch-scorecard";
 import { fetchScorecardWithFallback } from "@/lib/scoring/fetch-with-fallback";
 import { isCricApiError, classifyCricApiError } from "@/lib/cricapi/errors";
 import { NextRequest, NextResponse } from "next/server";

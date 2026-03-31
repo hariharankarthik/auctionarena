@@ -37,6 +37,8 @@ type FallbackOpts = {
   matchId: string;
   /** Match date YYYY-MM-DD (used for Cricsheet cache lookup). */
   matchDate?: string;
+  /** Optional expected team names (improves multi-match day matching). */
+  expectedTeams?: string[];
   /** Supabase client for querying cricsheet_cache. */
   supabase?: SupabaseLike | null;
 };
@@ -59,7 +61,7 @@ type SupabaseLike = { from: (table: string) => unknown };
 export async function fetchScorecardWithFallback(
   opts: FallbackOpts,
 ): Promise<FallbackResult> {
-  const { matchId, matchDate, supabase } = opts;
+  const { matchId, matchDate, expectedTeams, supabase } = opts;
 
   try {
     // 1. Try CricAPI first (primary — real-time)
@@ -75,7 +77,7 @@ export async function fetchScorecardWithFallback(
 
     // 2. CricAPI rate-limited → try Cricsheet cache (backfill data)
     if (supabase && matchDate) {
-      const cached = await tryLoadCricsheetCache(supabase, matchDate);
+      const cached = await tryLoadCricsheetCache(supabase, matchDate, expectedTeams);
       if (cached && cached.length > 0) {
         return { performances: cached, provider: "cricsheet_cache" };
       }
@@ -103,29 +105,59 @@ export async function fetchScorecardWithFallback(
 async function tryLoadCricsheetCache(
   supabase: SupabaseLike,
   matchDate: string,
+  expectedTeams?: string[],
 ): Promise<CricApiMappedPerformance[] | null> {
   try {
     const result = await (supabase.from("cricsheet_cache") as {
       select: (cols: string) => {
         eq: (col: string, val: string) => Promise<{
-          data: Array<{ performances: CricApiMappedPerformance[] }> | null;
+          data: Array<{ performances: CricApiMappedPerformance[]; teams?: string[] }> | null;
           error: unknown;
         }>;
       };
     })
-      .select("performances")
+      .select("performances,teams")
       .eq("match_date", matchDate);
 
     if (result.error || !result.data || result.data.length === 0) return null;
 
-    // Merge performances from all matches on this date
-    const all: CricApiMappedPerformance[] = [];
-    for (const row of result.data) {
-      all.push(...row.performances);
+    // If teams are provided, pick the exact match row for multi-match dates.
+    if (expectedTeams && expectedTeams.length > 0) {
+      for (const row of result.data) {
+        if (teamsMatch(expectedTeams, row.teams ?? [])) {
+          return row.performances;
+        }
+      }
+      return null;
     }
-    return all;
+
+    // Ambiguous date (2 matches): don't guess without teams.
+    if (result.data.length > 1) return null;
+
+    return result.data[0].performances;
   } catch {
     // Table may not exist yet — that's fine, just means no cache
     return null;
   }
+}
+
+function normalizeTeamName(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function teamLike(a: string, b: string): boolean {
+  const x = normalizeTeamName(a);
+  const y = normalizeTeamName(b);
+  return x === y || x.includes(y) || y.includes(x);
+}
+
+function teamsMatch(expected: string[], candidate: string[]): boolean {
+  if (expected.length < 2 || candidate.length < 2) return false;
+  const [e1, e2] = expected;
+  const [c1, c2] = candidate;
+  return (teamLike(e1, c1) && teamLike(e2, c2)) || (teamLike(e1, c2) && teamLike(e2, c1));
 }
