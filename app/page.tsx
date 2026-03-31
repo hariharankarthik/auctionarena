@@ -28,9 +28,10 @@ export default function Home() {
   const [invite, setInvite] = useState("");
   const inviteHref = useMemo(() => {
     const code = invite.trim().toUpperCase();
-    const next = code ? `/dashboard?join=${encodeURIComponent(code)}` : "/dashboard";
+    const next = code ? `/join/${encodeURIComponent(code)}` : "/dashboard";
     return `/login?next=${encodeURIComponent(next)}`;
   }, [invite]);
+  const hasInvite = invite.trim().length > 0;
 
   return (
     <main
@@ -75,7 +76,7 @@ export default function Home() {
                 autoCapitalize="characters"
               />
             </div>
-            <Button asChild size="lg" variant="outline" className="h-12 text-base">
+            <Button asChild size="lg" variant={hasInvite ? "secondary" : "outline"} className="h-12 text-base">
               <Link href={inviteHref}>Join</Link>
             </Button>
           </div>

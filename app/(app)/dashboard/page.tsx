@@ -75,11 +75,9 @@ export default async function DashboardPage({
             className="items-center"
             title={<span className="aa-display text-2xl font-bold tracking-tight sm:text-3xl">{displayName}</span>}
             subtitle={
-              <span className="text-blue-300/90">
-                Welcome back.{" "}
-                <span className="text-neutral-400">
-                  Run a mega auction room, or spin up a <span className="text-blue-200/95">private league</span>.
-                </span>
+              <span className="text-neutral-400">
+                Welcome back. Run a mega auction room, or spin up a{" "}
+                <span className="font-semibold text-neutral-200">private league</span>.
               </span>
             }
             actions={
