@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ClickableCardLink } from "@/components/ui/clickable-card-link";
+import { PageHeader } from "@/components/ui/page-header";
 import type { AuctionRoom } from "@/lib/sports/types";
 import { IPL_2026 } from "@/lib/sports/ipl";
 import { NFL_2026 } from "@/lib/sports/nfl";
@@ -73,40 +74,52 @@ export default async function DashboardPage({
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-blue-950/35 via-neutral-950/70 to-white/5 p-6 sm:p-8 shadow-[0_0_80px_-20px_rgba(59,130,246,0.28)]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_60%_at_100%_-10%,rgba(59,130,246,0.14),transparent)]" />
         <div className="relative z-10">
-          <p className="text-sm font-medium text-blue-300/90">Welcome back</p>
-          <h1 className="aa-display mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">{displayName}</h1>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-neutral-400 sm:text-base">
-            Run a mega auction room, or spin up a{" "}
-            <span className="text-blue-200/95">private league</span> — import squads from a sheet and keep the same fantasy scoring.
-          </p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Button
-              asChild
-              size="lg"
-              className="h-11 gap-2 border border-blue-400/20 bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-900/30 sm:min-w-[200px]"
-            >
-              <Link href="/room/create">
-                <PlusCircle className="h-4 w-4" aria-hidden />
-                Create auction room
-              </Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="secondary"
-              className="h-11 gap-2 border border-violet-400/25 bg-violet-950/50 text-violet-100 hover:bg-violet-900/50 sm:min-w-[200px]"
-            >
-              <Link href="/league/private/create">
-                <Wand2 className="h-4 w-4" aria-hidden />
-                Create a private league
-              </Link>
-            </Button>
-            <div className="flex h-11 items-center justify-center sm:justify-start" title="Join a room using an invite code from your host.">
-              <JoinModal initialOpen={Boolean(join)} initialCode={join} />
-            </div>
-          </div>
+          <PageHeader
+            className="items-center"
+            title={<span className="aa-display text-2xl font-bold tracking-tight sm:text-3xl">{displayName}</span>}
+            subtitle={
+              <span className="text-blue-300/90">
+                Welcome back.{" "}
+                <span className="text-neutral-400">
+                  Run a mega auction room, or spin up a <span className="text-blue-200/95">private league</span>.
+                </span>
+              </span>
+            }
+            actions={
+              <>
+                <Button
+                  asChild
+                  size="lg"
+                  className="h-11 gap-2 border border-blue-400/20 bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-900/30 sm:min-w-[200px]"
+                >
+                  <Link href="/room/create">
+                    <PlusCircle className="h-4 w-4" aria-hidden />
+                    Create auction room
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="secondary"
+                  className="h-11 gap-2 border border-violet-400/25 bg-violet-950/50 text-violet-100 hover:bg-violet-900/50 sm:min-w-[200px]"
+                >
+                  <Link href="/league/private/create">
+                    <Wand2 className="h-4 w-4" aria-hidden />
+                    Create a private league
+                  </Link>
+                </Button>
+                <div
+                  className="flex h-11 items-center justify-center sm:justify-start"
+                  title="Join a room using an invite code from your host."
+                >
+                  <JoinModal initialOpen={Boolean(join)} initialCode={join} />
+                </div>
+              </>
+            }
+          />
           <p className="mt-3 text-xs text-neutral-500">
-            <span className="text-neutral-300">Private leagues</span> are for squads drafted offline — import a sheet and track fantasy scores here.
+            <span className="text-neutral-300">Private leagues</span> are for squads drafted offline — import a sheet and
+            track fantasy scores here.
           </p>
         </div>
       </div>
