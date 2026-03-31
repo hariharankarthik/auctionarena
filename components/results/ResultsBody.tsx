@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { LineupPanel } from "./LineupPanel";
 import { formatCurrencyLakhsToCr } from "@/lib/utils";
 import { PlayerMeta } from "@/components/player/PlayerMeta";
@@ -88,23 +89,23 @@ export function ResultsBody({
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">{roomName}</h1>
-          <p className="text-sm text-neutral-500">Auction results</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" disabled={sharing} onClick={() => void shareImage()}>
-            Share as image
-          </Button>
-          <Button type="button" variant="outline" onClick={() => void shareNative()}>
-            Share link
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={`/room/${roomId}/league`}>Fantasy league</Link>
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={roomName}
+        subtitle="Auction results"
+        actions={
+          <>
+            <Button type="button" variant="secondary" disabled={sharing} onClick={() => void shareImage()}>
+              Share as image
+            </Button>
+            <Button type="button" variant="outline" onClick={() => void shareNative()}>
+              Share link
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/room/${roomId}/league`}>Fantasy league</Link>
+            </Button>
+          </>
+        }
+      />
 
       {/* Capture region for html-to-image */}
       <div
