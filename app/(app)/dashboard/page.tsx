@@ -13,7 +13,6 @@ import { NFL_2026 } from "@/lib/sports/nfl";
 import { PlusCircle, Sparkles, Users, Wand2 } from "lucide-react";
 
 export default async function DashboardPage({
-  searchParams,
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
