@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LeagueClient } from "@/components/league/LeagueClient";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { LeagueTeamDisplay } from "@/lib/sports/types";
 import { PlayerMeta } from "@/components/player/PlayerMeta";

@@ -130,7 +130,7 @@ export function ImportTeamsClient({ leagueId }: { leagueId: string }) {
         />
         <p className="text-xs text-neutral-500">
           Excel: Save As CSV. Sheets: copy range (tabs work). Optional columns: team name, captain marker (C / VC).
-          Player names should be full names (e.g. "Rohit Sharma") to avoid ambiguity.
+          Player names should be full names (e.g. &ldquo;Rohit Sharma&rdquo;) to avoid ambiguity.
         </p>
       </div>
 
