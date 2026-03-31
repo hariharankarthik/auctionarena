@@ -27,7 +27,7 @@ export default function Home() {
     <main
       id="main-content"
       tabIndex={-1}
-      className="relative min-h-screen overflow-hidden bg-[#070708] text-neutral-100 outline-none"
+      className="relative min-h-screen overflow-hidden bg-transparent text-neutral-100 outline-none"
     >
       <div className="aa-hero-glow" aria-hidden />
       <div className="relative mx-auto flex max-w-5xl flex-col gap-14 px-5 py-16 sm:gap-20 sm:py-24">
@@ -36,15 +36,14 @@ export default function Home() {
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
           className="space-y-7 text-center"
         >
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-400/95 sm:text-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-blue-300/90 sm:text-sm">
             Your league. Your auction.
           </p>
-          <h1 className="mx-auto max-w-4xl text-[1.65rem] font-bold leading-[1.15] tracking-tight text-white sm:text-5xl sm:leading-[1.1]">
-            Run Your Own{" "}
-            <span className="bg-gradient-to-r from-emerald-300 via-emerald-400 to-amber-200 bg-clip-text text-transparent">
-              IPL Mega Auction
-            </span>{" "}
-            with Friends.
+          <h1 className="aa-display mx-auto max-w-4xl text-[1.65rem] font-bold leading-[1.15] tracking-tight text-white sm:text-5xl sm:leading-[1.1]">
+            Bid. Build.{" "}
+            <span className="bg-gradient-to-r from-white via-blue-200 to-blue-500 bg-clip-text text-transparent">
+              Compete.
+            </span>
           </h1>
           <p className="mx-auto max-w-2xl text-base leading-relaxed text-neutral-400 sm:text-lg">
             Feel the room react in real time — bids, purses, and the hammer. Draft squads, then chase bragging rights on
@@ -62,9 +61,9 @@ export default function Home() {
             {STATS.map(({ label, value, icon: Icon }) => (
               <div
                 key={label}
-                className="rounded-xl border border-neutral-800/90 bg-neutral-950/50 px-3 py-3 text-center backdrop-blur-sm sm:px-4 sm:py-4"
+                className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-center backdrop-blur-xl sm:px-4 sm:py-4"
               >
-                <Icon className="mx-auto mb-2 h-4 w-4 text-emerald-500/90 sm:h-5 sm:w-5" aria-hidden />
+                <Icon className="mx-auto mb-2 h-4 w-4 text-blue-300/90 sm:h-5 sm:w-5" aria-hidden />
                 <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-500 sm:text-xs">{label}</p>
                 <p className="mt-0.5 text-sm font-semibold text-white sm:text-base">{value}</p>
               </div>

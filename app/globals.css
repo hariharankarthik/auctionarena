@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #06060a;
+  --background: #0a0a1a;
   --foreground: #f4f4f5;
+  --aa-blue: #3b82f6;
+  --aa-blue-dim: rgba(59, 130, 246, 0.14);
+  --aa-gold: #f59e0b;
+  --aa-gold-dim: rgba(245, 158, 11, 0.12);
   --aa-emerald: #10b981;
-  --aa-emerald-dim: rgba(16, 185, 129, 0.12);
-  --aa-violet: #8b5cf6;
-  --aa-violet-dim: rgba(139, 92, 246, 0.14);
-  --aa-gold: #fbbf24;
-  --aa-card: rgba(23, 23, 23, 0.65);
-  --aa-border: rgba(64, 64, 64, 0.65);
+  --aa-card: rgba(255, 255, 255, 0.055);
+  --aa-border: rgba(255, 255, 255, 0.12);
 }
 
 .aa-display {
@@ -42,8 +42,9 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  -webkit-tap-highlight-color: rgba(139, 92, 246, 0.15);
+  -webkit-tap-highlight-color: rgba(59, 130, 246, 0.16);
   position: relative;
+  font-variant-numeric: tabular-nums;
 }
 
 body::before {
@@ -61,8 +62,21 @@ body > * {
   z-index: 1;
 }
 
+.aa-mesh {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 20% 45%, rgba(59, 130, 246, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 20%, rgba(245, 158, 11, 0.08) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 80%, rgba(16, 185, 129, 0.06) 0%, transparent 55%),
+    linear-gradient(to bottom, #0a0a1a, #111827);
+  filter: saturate(1.05);
+}
+
 ::selection {
-  background: rgba(16, 185, 129, 0.35);
+  background: rgba(59, 130, 246, 0.35);
   color: #fff;
 }
 
@@ -80,7 +94,7 @@ body > * {
   height: 60%;
   left: -20%;
   top: -15%;
-  background: radial-gradient(ellipse 70% 80% at 50% 0%, rgba(16, 185, 129, 0.22), transparent 70%);
+  background: radial-gradient(ellipse 70% 80% at 50% 0%, rgba(59, 130, 246, 0.18), transparent 70%);
   animation: aa-float 20s ease-in-out infinite;
 }
 .aa-hero-glow::after {
@@ -90,7 +104,7 @@ body > * {
   height: 40%;
   right: -10%;
   bottom: 10%;
-  background: radial-gradient(ellipse at 70% 50%, rgba(251, 191, 36, 0.08), transparent 60%);
+  background: radial-gradient(ellipse at 70% 50%, rgba(245, 158, 11, 0.10), transparent 60%);
   animation: aa-float 26s ease-in-out infinite reverse;
 }
 
@@ -103,8 +117,8 @@ body > * {
 
 .aa-app-shell {
   background:
-    radial-gradient(ellipse 100% 70% at 80% -20%, rgba(139, 92, 246, 0.09), transparent 55%),
-    radial-gradient(ellipse 120% 80% at 50% -30%, rgba(16, 185, 129, 0.07), transparent 55%),
+    radial-gradient(ellipse 100% 70% at 80% -20%, rgba(59, 130, 246, 0.08), transparent 55%),
+    radial-gradient(ellipse 120% 80% at 50% -30%, rgba(245, 158, 11, 0.06), transparent 55%),
     var(--background);
 }
 
@@ -115,10 +129,10 @@ body > * {
     transform 0.2s ease;
 }
 .aa-card-interactive:hover {
-  border-color: rgba(139, 92, 246, 0.35);
+  border-color: rgba(255, 255, 255, 0.18);
   box-shadow:
-    0 0 0 1px rgba(139, 92, 246, 0.12),
-    0 0 24px -8px rgba(16, 185, 129, 0.12),
+    0 0 0 1px rgba(59, 130, 246, 0.13),
+    0 0 26px -10px rgba(245, 158, 11, 0.12),
     0 16px 40px -20px rgba(0, 0, 0, 0.5);
   transform: translateY(-1px);
 }
