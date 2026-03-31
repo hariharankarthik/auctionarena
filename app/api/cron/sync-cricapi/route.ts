@@ -100,6 +100,17 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const supabaseAdmin = createServerClient(url, serviceKey, {
+    cookies: {
+      getAll() {
+        return [];
+      },
+      setAll() {
+        /* no-op */
+      },
+    },
+  });
+
   const matchIdsRaw = process.env.CRICAPI_DAILY_MATCH_IDS ?? "";
   let matchIds = parseCsv(matchIdsRaw);
 
@@ -136,12 +147,14 @@ export async function GET(req: NextRequest) {
         seriesIdFilter,
       });
 
-    // Discovery: try a few pages since CricAPI is offset-based.
+    // Discovery: try pages until we find matches (saves API calls vs always fetching 4 pages).
     const raws: unknown[] = [];
     for (const offset of [0, 1, 2, 3]) {
       const r = await fetchCurrentMatchesFromCricApi(cricApiKey, offset);
       raws.push(r);
       matchIds.push(...discover(r, matchDatePrefix));
+      // Stop paging once we have matches — most IPL days have 1-2 matches on page 0.
+      if (matchIds.length > 0) break;
     }
     // Fallback 1: if match ended after midnight / date mismatch, try yesterday.
     if (!matchIds.length) {
@@ -213,17 +226,6 @@ export async function GET(req: NextRequest) {
       { status: 400 },
     );
   }
-
-  const supabaseAdmin = createServerClient(url, serviceKey, {
-    cookies: {
-      getAll() {
-        return [];
-      },
-      setAll() {
-        /* no-op */
-      },
-    },
-  });
 
   const { data: leagues, error: lErr } = await supabaseAdmin
     .from("fantasy_leagues")
