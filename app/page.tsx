@@ -96,9 +96,9 @@ export default function Home() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.12 + i * 0.06, duration: 0.45 }}
-              className="group rounded-2xl border border-neutral-800/90 bg-neutral-950/55 p-5 transition-colors duration-300 hover:border-emerald-500/25 hover:bg-emerald-950/10 sm:p-6"
+              className="group rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl transition-colors duration-300 hover:border-blue-500/25 hover:bg-white/8 sm:p-6"
             >
-              <h3 className="text-base font-semibold text-emerald-300 sm:text-lg">{f.title}</h3>
+              <h3 className="text-base font-semibold text-blue-200 sm:text-lg">{f.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-neutral-400 group-hover:text-neutral-300">{f.body}</p>
             </motion.div>
           ))}
@@ -109,9 +109,9 @@ export default function Home() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }}
           transition={{ duration: 0.5 }}
-          className="rounded-2xl border border-neutral-800/80 bg-gradient-to-b from-neutral-950/80 to-neutral-950/40 px-5 py-10 sm:px-8 sm:py-12"
+          className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/7 to-white/3 px-5 py-10 backdrop-blur-xl sm:px-8 sm:py-12"
         >
-          <h2 className="text-center text-xs font-semibold uppercase tracking-[0.22em] text-emerald-500/90 sm:text-sm">
+          <h2 className="text-center text-xs font-semibold uppercase tracking-[0.22em] text-blue-300/90 sm:text-sm">
             Why hosts love it
           </h2>
           <p className="mx-auto mt-2 max-w-lg text-center text-sm text-neutral-400 sm:text-base">
@@ -125,17 +125,17 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.07, duration: 0.4 }}
-                className="rounded-xl border border-neutral-800/80 bg-neutral-950/70 p-4 text-left shadow-sm sm:p-5"
+                className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left shadow-sm backdrop-blur-xl sm:p-5"
               >
                 <p className="text-sm leading-relaxed text-neutral-200">&ldquo;{s.quote}&rdquo;</p>
-                <p className="mt-3 text-xs font-medium text-emerald-500/80">{s.who}</p>
+                <p className="mt-3 text-xs font-medium text-blue-200/80">{s.who}</p>
               </motion.li>
             ))}
           </ul>
         </motion.section>
 
         <p className="pb-8 text-center text-xs text-neutral-600">
-          <Link href="/login" className="text-neutral-500 underline-offset-4 hover:text-emerald-400 hover:underline">
+          <Link href="/login" className="text-neutral-500 underline-offset-4 hover:text-blue-300 hover:underline">
             Already have an account? Sign in
           </Link>
         </p>
