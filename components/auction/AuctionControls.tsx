@@ -9,12 +9,9 @@ type FinalizeInfo = { wasSold: boolean; completed: boolean };
 export function AuctionControls({
   roomId,
   onLotFinalized,
-  hasWinningBidder,
 }: {
   roomId: string;
   onLotFinalized?: (info: FinalizeInfo) => void;
-  /** Hammer "Sold" only applies when someone holds the current bid (matches server). */
-  hasWinningBidder: boolean;
 }) {
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -93,20 +90,16 @@ export function AuctionControls({
       </Button>
       <Button
         size="sm"
-        disabled={!!loading || !hasWinningBidder}
-        title={
-          hasWinningBidder
-            ? undefined
-            : "Wait for at least one bid so there is a high bidder, or use Unsold to pass."
-        }
+        disabled={!!loading}
+        title="Finalize immediately (ignores the timer). Sold if a high bidder exists, otherwise Unsold."
         onClick={async () => {
-          const data = await post("/api/auction/sold", { room_id: roomId });
+          const data = await post("/api/auction/finalize", { room_id: roomId, force: true });
           const fin = parseFinalize(data);
           if (fin) onLotFinalized?.(fin);
           if (fin?.completed) window.location.href = `/room/${roomId}/results`;
         }}
       >
-        Sold / End lot
+        Finalize now
       </Button>
     </div>
   );

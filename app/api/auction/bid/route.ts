@@ -45,6 +45,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: validation.error }, { status: 400 });
   }
 
+  const now = Date.now();
+  const currentEnds = room.lot_ends_at ? new Date(room.lot_ends_at).getTime() : null;
+  const base = Math.max(now, currentEnds ?? now + 20 * 1000);
+  const bumpedEndsAt = new Date(base + 6 * 1000).toISOString();
+
   const { error: bidErr } = await supabase.from("bids").insert({
     room_id,
     player_id: room.current_player_id,
@@ -58,9 +63,10 @@ export async function POST(req: NextRequest) {
     .update({
       current_bid: bid_amount,
       current_bidder_team_id: team_id,
+      lot_ends_at: bumpedEndsAt,
     })
     .eq("id", room_id);
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
 
-  return NextResponse.json({ success: true, bid_amount });
+  return NextResponse.json({ success: true, bid_amount, lot_ends_at: bumpedEndsAt });
 }

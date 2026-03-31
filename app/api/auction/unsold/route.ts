@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
   const { data: room, error } = await supabase.from("auction_rooms").select("*").eq("id", room_id).single();
   if (error || !room) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (room.host_id !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Timer-driven auctions: prefer /api/auction/finalize (auto unsold when no bidder).
   if (!room.current_player_id) {
     return NextResponse.json({ error: "No active player" }, { status: 400 });
   }

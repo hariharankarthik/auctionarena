@@ -44,6 +44,8 @@ export type AuctionRoom = {
   current_player_id: string | null;
   current_bid: number;
   current_bidder_team_id: string | null;
+  lot_ends_at?: string | null;
+  lot_pause_remaining_seconds?: number | null;
   player_queue: string[];
   queue_index: number;
   created_at: string;

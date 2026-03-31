@@ -20,7 +20,16 @@ export async function POST(req: NextRequest) {
 
   // Resume mid-auction: keep current player, bid, and bidder (all persisted in auction_rooms).
   if (room.status === "paused") {
-    const { error: upErr } = await supabase.from("auction_rooms").update({ status: "live" }).eq("id", room_id);
+    const remaining = Math.max(0, Number(room.lot_pause_remaining_seconds ?? 0));
+    const endsAt = new Date(Date.now() + (remaining || 20) * 1000).toISOString();
+    const { error: upErr } = await supabase
+      .from("auction_rooms")
+      .update({
+        status: "live",
+        lot_ends_at: endsAt,
+        lot_pause_remaining_seconds: null,
+      })
+      .eq("id", room_id);
     if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
     return NextResponse.json({ success: true, resumed: true });
   }
@@ -41,6 +50,8 @@ export async function POST(req: NextRequest) {
       current_player_id: playerId,
       current_bid: player?.base_price ?? 0,
       current_bidder_team_id: null,
+      lot_ends_at: new Date(Date.now() + 20 * 1000).toISOString(),
+      lot_pause_remaining_seconds: null,
     })
     .eq("id", room_id);
 

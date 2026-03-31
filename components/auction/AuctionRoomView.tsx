@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { toast } from "sonner";
 import { useAuctionRoom } from "@/hooks/useAuctionRoom";
-import { useTimer } from "@/hooks/useTimer";
 import { createClient } from "@/lib/supabase/client";
 import type { PlayerRow, RoomRuntimeConfig } from "@/lib/sports/types";
 import { playSound } from "@/lib/sounds";
@@ -19,7 +18,6 @@ import { TimerDisplay } from "./Timer";
 import { SoldOverlay } from "./SoldOverlay";
 import { AuctionControls } from "./AuctionControls";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 export function AuctionRoomView({
   roomId,
@@ -34,17 +32,18 @@ export function AuctionRoomView({
   const supabase = useMemo(() => createClient(), []);
   const { room, teams, bids, loading } = useAuctionRoom(roomId);
   const cfg = (room?.config ?? {}) as RoomRuntimeConfig;
-  const duration = cfg.timerSeconds ?? 30;
+  const duration = cfg.timerSeconds ?? 20;
   const increments = cfg.bidIncrements ?? [5, 10, 20, 25, 50, 100];
   const isHost = room?.host_id === userId;
-  const { timeLeft, start, reset, freeze } = useTimer(roomId, isHost, duration);
   const reduceMotion = useReducedMotion();
 
+  const [timeLeft, setTimeLeft] = useState(duration);
   const [player, setPlayer] = useState<PlayerRow | null>(null);
   const [mySquad, setMySquad] = useState<PlayerRow[]>([]);
   const [soldOverlay, setSoldOverlay] = useState<{ open: boolean; label: string }>({ open: false, label: "" });
   const prevTick = useRef<number | null>(null);
   const prevTimeLeftForToast = useRef<number | null>(null);
+  const finalizingRef = useRef(false);
   const prevAuctionStatusRef = useRef<string | undefined>(undefined);
   const prevPlayerIdRef = useRef<string | null>(null);
 
@@ -56,12 +55,8 @@ export function AuctionRoomView({
   useEffect(() => {
     if (!isHost || !room) return;
     const s = room.status;
-    const prev = prevAuctionStatusRef.current;
-    if (prev === "live" && s === "paused") {
-      freeze();
-    }
     prevAuctionStatusRef.current = s;
-  }, [room?.status, isHost, room, freeze]);
+  }, [room?.status, isHost, room]);
 
   useEffect(() => {
     if (!isHost || !room) return;
@@ -71,11 +66,32 @@ export function AuctionRoomView({
       return;
     }
     if (!pid) return;
-    if (prevPlayerIdRef.current !== null && prevPlayerIdRef.current !== pid) {
-      reset(duration);
-    }
+    // New lots get a fresh DB timer in `lot_ends_at` (no manual reset required)
     prevPlayerIdRef.current = pid;
-  }, [room?.current_player_id, room?.status, isHost, duration, reset, room]);
+  }, [room?.current_player_id, room?.status, isHost, room]);
+
+  useEffect(() => {
+    // Derived countdown from authoritative `auction_rooms.lot_ends_at`.
+    if (!room || room.status !== "live") {
+      setTimeLeft(duration);
+      return;
+    }
+    if (!room.lot_ends_at) {
+      setTimeLeft(duration);
+      return;
+    }
+
+    const tick = () => {
+      const endsMs = new Date(room.lot_ends_at as string).getTime();
+      const now = Date.now();
+      const next = Math.max(0, Math.ceil((endsMs - now) / 1000));
+      setTimeLeft(next);
+    };
+
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [room?.lot_ends_at, room?.status, duration, room]);
 
   useEffect(() => {
     if (loading || !room) return;
@@ -153,9 +169,42 @@ export function AuctionRoomView({
     prevTimeLeftForToast.current = timeLeft;
     // Only on transition into 0 — not on every realtime room update while stuck at 0
     if (was !== null && was > 0 && timeLeft === 0 && isHost && room?.status === "live") {
-      toast.message("Timer at 0 — finalize the lot (Sold / Unsold).", { id: "auction-timer-zero" });
+      toast.message("Timer ended — finalizing lot.", { id: "auction-timer-zero" });
     }
   }, [timeLeft, isHost, room?.status]);
+
+  useEffect(() => {
+    if (!isHost || !room) return;
+    if (room.status !== "live") return;
+    if (!room.current_player_id) return;
+    if (timeLeft !== 0) return;
+    if (finalizingRef.current) return;
+    finalizingRef.current = true;
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/auction/finalize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ room_id: roomId }),
+        });
+        const data = (await res.json()) as { error?: string; was_sold?: boolean; completed?: boolean };
+        if (!res.ok) throw new Error(data.error || "Finalize failed");
+
+        if (data.was_sold) playSound("gavel");
+        setSoldOverlay({
+          open: true,
+          label: data.was_sold ? `SOLD · ${formatCurrencyLakhsToCr(room.current_bid)}` : "UNSOLD",
+        });
+        window.setTimeout(() => setSoldOverlay((s) => ({ ...s, open: false })), 1800);
+        if (data.completed) window.location.href = `/room/${roomId}/results`;
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Finalize failed");
+      } finally {
+        finalizingRef.current = false;
+      }
+    })();
+  }, [timeLeft, isHost, room, roomId]);
 
   useEffect(() => {
     if (timeLeft <= 0) {
@@ -229,33 +278,6 @@ export function AuctionRoomView({
           </p>
         </div>
         <TimerDisplay seconds={timeLeft} />
-        {isHost ? (
-          <div className="space-y-2">
-            <p className="text-xs text-neutral-500">
-              Pausing the auction freezes the clock. Sold / Unsold / Next resets the clock to {duration}s for the new lot (does not auto-start).
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                disabled={room.status !== "live"}
-                onClick={() => {
-                  reset(duration);
-                  start();
-                }}
-              >
-                Start timer
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={room.status !== "live"}
-                onClick={() => reset(duration)}
-              >
-                Reset timer
-              </Button>
-            </div>
-          </div>
-        ) : null}
         <BidControls
           roomId={roomId}
           teamId={myTeamId}
@@ -269,15 +291,13 @@ export function AuctionRoomView({
             <p className="text-xs uppercase text-neutral-500">Host controls</p>
             {!room.current_bidder_team_id ? (
               <p className="text-xs text-neutral-500">
-                No high bidder yet — <strong className="font-medium text-neutral-400">Sold / End lot</strong> stays off until someone bids. Use{" "}
-                <strong className="font-medium text-neutral-400">Unsold</strong> to pass the player.
+                No high bidder yet — when the timer ends this lot will go <strong className="font-medium text-neutral-300">UNSOLD</strong>. Host can also pass manually.
               </p>
             ) : null}
             <AuctionControls
               roomId={roomId}
-              hasWinningBidder={Boolean(room.current_bidder_team_id)}
               onLotFinalized={(info) => {
-                setSoldOverlay({ open: true, label: info.wasSold ? "SOLD!" : "UNSOLD" });
+                setSoldOverlay({ open: true, label: info.wasSold ? `SOLD · ${formatCurrencyLakhsToCr(room.current_bid)}` : "UNSOLD" });
                 if (info.wasSold) playSound("gavel");
                 window.setTimeout(() => setSoldOverlay((s) => ({ ...s, open: false })), 1400);
               }}

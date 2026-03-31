@@ -6,6 +6,7 @@ type RoomRow = {
   player_queue: string[];
   host_id: string;
   name: string;
+  config?: { timerSeconds?: number } | null;
 };
 
 export async function advanceLotAfterResult(
@@ -21,6 +22,8 @@ export async function advanceLotAfterResult(
         status: "completed",
         current_player_id: null,
         current_bidder_team_id: null,
+        lot_ends_at: null,
+        lot_pause_remaining_seconds: null,
       })
       .eq("id", roomId);
 
@@ -55,6 +58,9 @@ export async function advanceLotAfterResult(
     .eq("id", nextPlayerId)
     .single();
 
+  const timerSeconds = Number(room.config?.timerSeconds ?? 20);
+  const endsAt = new Date(Date.now() + Math.max(5, timerSeconds) * 1000).toISOString();
+
   await supabase
     .from("auction_rooms")
     .update({
@@ -62,6 +68,8 @@ export async function advanceLotAfterResult(
       current_bid: nextPlayer?.base_price ?? 0,
       current_bidder_team_id: null,
       queue_index: nextIndex,
+      lot_ends_at: endsAt,
+      lot_pause_remaining_seconds: null,
     })
     .eq("id", roomId);
 
