@@ -115,7 +115,7 @@ export function ResultsBody({
             <Button type="button" variant="secondary" onClick={() => void shareNative()}>
               Share link
             </Button>
-            <Button asChild variant="outline">
+            <Button asChild variant="secondary">
               <Link href={`/room/${roomId}/league`}>Fantasy league</Link>
             </Button>
           </>

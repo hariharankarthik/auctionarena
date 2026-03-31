@@ -25,7 +25,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ roomId:
         title={room.name}
         subtitle="Fantasy league"
         actions={
-          <Button asChild variant="outline">
+          <Button asChild variant="secondary">
             <Link href={`/room/${roomId}/results`}>Results</Link>
           </Button>
         }
