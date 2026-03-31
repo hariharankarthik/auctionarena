@@ -16,7 +16,7 @@ function flagForNationality(nationality: string | null | undefined): string | nu
   const map: Record<string, string> = {
     india: "🇮🇳",
     australia: "🇦🇺",
-    england: "🇬🇧",
+    england: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     "south africa": "🇿🇦",
     "new zealand": "🇳🇿",
     afghanistan: "🇦🇫",
@@ -25,13 +25,14 @@ function flagForNationality(nationality: string | null | undefined): string | nu
     bangladesh: "🇧🇩",
     ireland: "🇮🇪",
     scotland: "🏴",
+    netherlands: "🇳🇱",
+    "united states of america": "🇺🇸",
     nepal: "🇳🇵",
     zimbabwe: "🇿🇼",
     pakistan: "🇵🇰",
-    uae: "🇦🇪",
     "united arab emirates": "🇦🇪",
   };
-  return map[n] ?? "🌐";
+  return map[n] ?? "🌍";
 }
 
 function emojiForRole(role: string | null | undefined): string | null {
@@ -41,7 +42,7 @@ function emojiForRole(role: string | null | undefined): string | null {
     case "BOWL":
       return "🎯";
     case "ALL":
-      return "⚡";
+      return "🏏🎯";
     case "WK":
       return "🧤";
     default:

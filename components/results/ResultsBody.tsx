@@ -167,10 +167,8 @@ export function ResultsBody({
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <PlayerMeta variant="badge" role={p.role} nationality={p.nationality ?? null} isOverseas={p.isOverseas} />
+                        <PlayerMeta variant="inline" role={p.role} nationality={p.nationality ?? null} isOverseas={p.isOverseas} />
                         <span className="truncate font-medium">{p.name}</span>
-                        <span className="text-neutral-500">· {p.role}</span>
-                        {p.isOverseas ? <span className="text-neutral-500">· OS</span> : null}
                       </div>
                     </div>
                   </div>

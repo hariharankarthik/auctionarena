@@ -128,19 +128,11 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
                           >
                             <div className="min-w-0">
                               <p className="truncate text-neutral-100">
-                                <span className="mr-2 align-middle" aria-hidden>
-                                  <PlayerMeta variant="inline" role={p.role} nationality={p.nationality} isOverseas={p.is_overseas} />
-                                </span>
+                                <PlayerMeta variant="inline" role={p.role} nationality={p.nationality} isOverseas={p.is_overseas} className="mr-2 align-middle" />
                                 {p.name}{" "}
                                 {isC ? <span className="text-blue-200">(C)</span> : isVC ? <span className="text-sky-200">(VC)</span> : null}
                               </p>
-                              <p className="text-xs text-neutral-500">
-                                {p.nationality ? `${p.nationality} · ` : ""}
-                                {p.role}
-                                {p.is_overseas ? " · Overseas" : ""}
-                              </p>
                             </div>
-                            <PlayerMeta variant="badge" role={p.role} nationality={p.nationality} isOverseas={p.is_overseas} />
                           </div>
                         );
                       })}

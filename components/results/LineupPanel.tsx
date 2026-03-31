@@ -147,10 +147,8 @@ export function LineupPanel({
                 />
                 <span>
                   <span className="inline-flex flex-wrap items-center gap-2">
-                    <PlayerMeta variant="badge" role={p.role} nationality={(p as { nationality?: string | null }).nationality ?? null} isOverseas={p.isOverseas} />
+                    <PlayerMeta variant="inline" role={p.role} nationality={(p as { nationality?: string | null }).nationality ?? null} isOverseas={p.isOverseas} />
                     <span className="font-medium text-neutral-100">{p.name}</span>
-                    <span className="text-neutral-500">· {p.role}</span>
-                    {p.isOverseas ? <span className="text-neutral-600">· OS</span> : null}
                   </span>
                 </span>
               </label>
