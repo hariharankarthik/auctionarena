@@ -32,3 +32,9 @@ next-env.d.ts
 
 # Testing
 coverage
+
+# Generated one-time data pulls
+data/player_meta_*.csv
+data/player_meta_*.misses.json
+data/ipl_players_espn_*.csv
+data/ipl_auction_cricbuzz_*.csv

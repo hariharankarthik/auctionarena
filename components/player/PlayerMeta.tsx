@@ -24,7 +24,7 @@ function flagForNationality(nationality: string | null | undefined): string | nu
     "sri lanka": "🇱🇰",
     bangladesh: "🇧🇩",
     ireland: "🇮🇪",
-    scotland: "🏴",
+    scotland: "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
     netherlands: "🇳🇱",
     "united states of america": "🇺🇸",
     nepal: "🇳🇵",
