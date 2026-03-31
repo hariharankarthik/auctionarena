@@ -32,8 +32,9 @@ export function LobbyView({
 
   const appUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
-    return `${window.location.origin}/room/${roomId}/lobby`;
-  }, [roomId]);
+    // Universal join URL so the same link works pre-auth.
+    return `${window.location.origin}/join/${encodeURIComponent(inviteCode)}`;
+  }, [inviteCode]);
 
   const readyCount = teams.filter((t) => t.is_ready).length;
   const allReady = teams.length >= MIN_TEAMS_TO_START && teams.every((t) => t.is_ready);

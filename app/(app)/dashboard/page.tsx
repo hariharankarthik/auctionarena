@@ -130,7 +130,7 @@ export default async function DashboardPage({
                   <p className="font-medium text-neutral-100 group-hover:text-white">{pl.name}</p>
                   <p className="text-xs text-neutral-500">
                     Code <span className="font-mono text-violet-300/90">{pl.invite_code}</span> ·{" "}
-                    <span className="text-neutral-600">/league/p/{pl.invite_code}</span>
+                    <span className="text-neutral-600">/join/{pl.invite_code}</span>
                   </p>
                 </div>
                 <span className="text-xs text-violet-300/80 group-hover:text-violet-200">Open →</span>
