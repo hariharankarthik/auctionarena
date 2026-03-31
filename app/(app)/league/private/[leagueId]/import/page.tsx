@@ -32,7 +32,7 @@ export default async function PrivateLeagueImportPage({ params }: { params: Prom
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
       <div>
         <h1 className="aa-display text-2xl font-bold text-white">Import teams · {league.name}</h1>
-        <p className="mt-1 text-sm text-neutral-500">Map columns once — names are fuzzy-matched to your sport player list.</p>
+        <p className="mt-1 text-sm text-neutral-500">Map columns once — player names must match your league player list.</p>
       </div>
       <ImportTeamsClient leagueId={leagueId} />
     </div>

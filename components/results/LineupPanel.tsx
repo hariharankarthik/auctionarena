@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { ResultPlayer } from "./ResultsBody";
+import { PlayerMeta } from "@/components/player/PlayerMeta";
 
 const MAX = 11;
 
@@ -145,8 +146,12 @@ export function LineupPanel({
                   className="h-4 w-4 rounded border-neutral-600 text-blue-500"
                 />
                 <span>
-                  <span className="font-medium text-neutral-100">{p.name}</span>{" "}
-                  <span className="text-neutral-500">· {p.role}</span>
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    <PlayerMeta variant="badge" role={p.role} nationality={(p as { nationality?: string | null }).nationality ?? null} isOverseas={p.isOverseas} />
+                    <span className="font-medium text-neutral-100">{p.name}</span>
+                    <span className="text-neutral-500">· {p.role}</span>
+                    {p.isOverseas ? <span className="text-neutral-600">· OS</span> : null}
+                  </span>
                 </span>
               </label>
               {on ? (

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { LeagueTeamDisplay } from "@/lib/sports/types";
+import { PlayerMeta } from "@/components/player/PlayerMeta";
 
 export default async function PrivateLeaguePage({ params }: { params: Promise<{ leagueId: string }> }) {
   const { leagueId } = await params;
@@ -128,18 +129,19 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
                           >
                             <div className="min-w-0">
                               <p className="truncate text-neutral-100">
+                                <span className="mr-2 align-middle" aria-hidden>
+                                  <PlayerMeta variant="inline" role={p.role} nationality={p.nationality} isOverseas={p.is_overseas} />
+                                </span>
                                 {p.name}{" "}
                                 {isC ? <span className="text-blue-200">(C)</span> : isVC ? <span className="text-sky-200">(VC)</span> : null}
                               </p>
                               <p className="text-xs text-neutral-500">
                                 {p.nationality ? `${p.nationality} · ` : ""}
-                                {p.is_overseas ? "Overseas · " : ""}
                                 {p.role}
+                                {p.is_overseas ? " · Overseas" : ""}
                               </p>
                             </div>
-                            <Badge variant="outline" className="shrink-0 border-white/10 text-neutral-300">
-                              {p.role}
-                            </Badge>
+                            <PlayerMeta variant="badge" role={p.role} nationality={p.nationality} isOverseas={p.is_overseas} />
                           </div>
                         );
                       })}

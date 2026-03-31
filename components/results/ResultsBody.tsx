@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineupPanel } from "./LineupPanel";
 import { formatCurrencyLakhsToCr } from "@/lib/utils";
+import { PlayerMeta } from "@/components/player/PlayerMeta";
 
 export type ResultPlayer = {
   resultId: string;
@@ -15,6 +16,7 @@ export type ResultPlayer = {
   role: string;
   isOverseas: boolean;
   soldPrice: number;
+  nationality?: string | null;
 };
 
 export type ResultTeamBlock = {
@@ -162,12 +164,16 @@ export function ResultsBody({
             <ul className="grid gap-2 sm:grid-cols-2">
               {team.players.map((p) => (
                 <li key={p.resultId} className="rounded-lg border border-neutral-800 px-3 py-2 text-sm">
-                  <span className="font-medium">{p.name}</span>
-                  <span className="text-neutral-500">
-                    {" "}
-                    · {p.role}
-                    {p.isOverseas ? " · OS" : ""}
-                  </span>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <PlayerMeta variant="badge" role={p.role} nationality={p.nationality ?? null} isOverseas={p.isOverseas} />
+                        <span className="truncate font-medium">{p.name}</span>
+                        <span className="text-neutral-500">· {p.role}</span>
+                        {p.isOverseas ? <span className="text-neutral-500">· OS</span> : null}
+                      </div>
+                    </div>
+                  </div>
                   <div className="text-blue-200">{formatCurrencyLakhsToCr(p.soldPrice)}</div>
                 </li>
               ))}

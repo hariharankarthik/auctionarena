@@ -23,7 +23,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ roomId
   const { data: players } =
     playerIds.length > 0
       ? await supabase.from("players").select("*").in("id", playerIds)
-      : { data: [] as { id: string; name: string; role: string; is_overseas: boolean }[] };
+      : { data: [] as { id: string; name: string; role: string; is_overseas: boolean; nationality?: string | null }[] };
 
   const playerById = new Map((players ?? []).map((p) => [p.id, p]));
 
@@ -53,6 +53,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ roomId
         role,
         isOverseas: Boolean(p?.is_overseas),
         soldPrice: r.sold_price ?? 0,
+        nationality: (p as { nationality?: string | null } | undefined)?.nationality ?? null,
       };
     });
     return {

@@ -3,6 +3,7 @@
 import type { PlayerRow } from "@/lib/sports/types";
 import { formatCurrencyLakhsToCr } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { PlayerMeta } from "@/components/player/PlayerMeta";
 
 export function PlayerCard({ player, baseLabel = "Base" }: { player: PlayerRow | null; baseLabel?: string }) {
   if (!player) {
@@ -20,11 +21,12 @@ export function PlayerCard({ player, baseLabel = "Base" }: { player: PlayerRow |
       <div className="relative flex items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{player.name}</h2>
-          <p className="mt-2 text-sm text-neutral-400">
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-neutral-400">
+            <PlayerMeta variant="badge" role={player.role} nationality={player.nationality} isOverseas={player.is_overseas} />
             <span className="font-medium text-blue-200/90">{player.role}</span>
-            {player.nationality ? <span> · {player.nationality}</span> : null}
-            {player.is_overseas ? <span className="text-amber-200/80"> · Overseas</span> : null}
-          </p>
+            {player.nationality ? <span>· {player.nationality}</span> : null}
+            {player.is_overseas ? <span className="text-amber-200/80">· Overseas</span> : null}
+          </div>
         </div>
         {player.tier ? (
           <Badge variant="secondary" className="shrink-0 border-amber-500/20 bg-amber-950/40 text-amber-200/90">
