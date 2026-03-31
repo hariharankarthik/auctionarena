@@ -112,7 +112,10 @@ export function PrivateLineupPanel({
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-neutral-800/80 p-4">
         <div>
           <p className="text-sm font-semibold text-white">Your Playing XI</p>
-          <p className="mt-1 text-xs text-neutral-400">Choose up to {maxStarters || MAX}. Captain 2× · Vice-captain 1.5×.</p>
+          <p className="mt-1 text-xs text-neutral-400">
+            Pick your starters (max {MAX}). With your current squad ({squadIds.size}), you can select up to{" "}
+            {maxStarters || MAX}. Captain 2× · Vice-captain 1.5×.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-200 ring-1 ring-blue-500/20">

@@ -127,8 +127,8 @@ export function LineupPanel({
         <div>
           <p className="text-sm font-semibold text-white">Starting XI</p>
           <p className="mt-1 text-xs text-neutral-400">
-            Choose up to {maxStarters || MAX}. Starters count for points; bench scores 0. Captain 2× · Vice-captain
-            1.5×.
+            Pick your starters (max {MAX}). With your current squad ({squadIds.size}), you can select up to{" "}
+            {maxStarters || MAX}. Starters count for points; bench scores 0. Captain 2× · Vice-captain 1.5×.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
