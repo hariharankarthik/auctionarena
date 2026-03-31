@@ -8,6 +8,7 @@ import {
   fetchCricApiScorecardJson,
   mergeBowlingFromCricApiJson,
 } from "@/lib/cricapi/fetch-scorecard";
+import { CricApiError } from "@/lib/cricapi/errors";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -36,7 +37,7 @@ async function fetchCurrentMatchesFromCricApi(apikey: string, offset: number) {
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {
     const t = await res.text().catch(() => "");
-    throw new Error(`CricAPI currentMatches HTTP ${res.status}: ${t.slice(0, 200)}`);
+    throw new CricApiError(`CricAPI currentMatches HTTP ${res.status}: ${t.slice(0, 200)}`, res.status);
   }
   return (await res.json()) as unknown;
 }

@@ -12,6 +12,7 @@ import {
   fetchCricApiScorecardJson,
   mergeBowlingFromCricApiJson,
 } from "@/lib/cricapi/fetch-scorecard";
+import { isCricApiError, classifyCricApiError } from "@/lib/cricapi/errors";
 import { NextRequest, NextResponse } from "next/server";
 
 type PerformanceInput = {
@@ -198,8 +199,23 @@ export async function POST(req: NextRequest) {
       performances = mapped.performances;
       unmatchedNames = mapped.unmatched.length ? mapped.unmatched : undefined;
     } catch (e) {
+      if (isCricApiError(e)) {
+        const { friendlyTitle, friendlyMessage, code, retryable } = e.classified;
+        return NextResponse.json(
+          { error: friendlyMessage, friendlyTitle, friendlyMessage, code, retryable },
+          { status: 502 },
+        );
+      }
+      const msg = e instanceof Error ? e.message : "CricAPI fetch failed";
+      const classified = classifyCricApiError(msg);
       return NextResponse.json(
-        { error: e instanceof Error ? e.message : "CricAPI fetch failed" },
+        {
+          error: classified.friendlyMessage,
+          friendlyTitle: classified.friendlyTitle,
+          friendlyMessage: classified.friendlyMessage,
+          code: classified.code,
+          retryable: classified.retryable,
+        },
         { status: 502 },
       );
     }
