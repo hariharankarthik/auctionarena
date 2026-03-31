@@ -94,6 +94,11 @@ export async function fetchScorecardWithFallback(
  *
  * Cricsheet and CricAPI use completely different ID systems (ESPN numeric
  * IDs vs CricAPI UUIDs), so we match by match date instead.
+ *
+ * When there are 2 matches on the same day (common in IPL), we merge
+ * performances from all matches. This is safe because IPL players don't
+ * play twice on the same day, and the downstream name-matching only picks
+ * players that exist in the DB.
  */
 async function tryLoadCricsheetCache(
   supabase: SupabaseLike,
@@ -102,20 +107,23 @@ async function tryLoadCricsheetCache(
   try {
     const result = await (supabase.from("cricsheet_cache") as {
       select: (cols: string) => {
-        eq: (col: string, val: string) => {
-          limit: (n: number) => Promise<{
-            data: Array<{ performances: CricApiMappedPerformance[] }> | null;
-            error: unknown;
-          }>;
-        };
+        eq: (col: string, val: string) => Promise<{
+          data: Array<{ performances: CricApiMappedPerformance[] }> | null;
+          error: unknown;
+        }>;
       };
     })
       .select("performances")
-      .eq("match_date", matchDate)
-      .limit(1);
+      .eq("match_date", matchDate);
 
     if (result.error || !result.data || result.data.length === 0) return null;
-    return result.data[0].performances;
+
+    // Merge performances from all matches on this date
+    const all: CricApiMappedPerformance[] = [];
+    for (const row of result.data) {
+      all.push(...row.performances);
+    }
+    return all;
   } catch {
     // Table may not exist yet — that's fine, just means no cache
     return null;
