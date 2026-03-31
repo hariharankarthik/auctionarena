@@ -20,8 +20,8 @@ const outfit = Outfit({
 
 export const metadata: Metadata = {
   title: {
-    default: "AuctionArena — IPL mega auctions with friends",
-    template: "%s · AuctionArena",
+    default: "Bidly — IPL mega auctions with friends",
+    template: "%s · Bidly",
   },
   description: "Real-time IPL mega auctions, live purses, and post-draft fantasy — built for friends who take the draft seriously.",
 };

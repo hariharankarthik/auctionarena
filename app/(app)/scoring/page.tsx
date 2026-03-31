@@ -5,7 +5,7 @@ import { loginUrlWithNext } from "@/lib/safe-path";
 import { ScoringRulesClient } from "@/components/scoring/ScoringRulesClient";
 
 export const metadata: Metadata = {
-  title: "Scoring system · AuctionArena",
+  title: "Scoring system · Bidly",
   description: "IPL fantasy scoring rules and API integration notes.",
 };
 

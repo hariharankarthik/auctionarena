@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
 
 const navLink =
-  "relative rounded-md px-2 py-1.5 text-sm text-neutral-400 transition-colors hover:text-white after:absolute after:bottom-0 after:left-2 after:right-2 after:h-px after:origin-left after:scale-x-0 after:bg-gradient-to-r after:from-violet-400 after:to-emerald-400 after:transition-transform hover:after:scale-x-100";
+  "relative rounded-md px-2 py-1.5 text-sm text-neutral-400 transition-colors hover:text-white after:absolute after:bottom-0 after:left-2 after:right-2 after:h-px after:origin-left after:scale-x-0 after:bg-gradient-to-r after:from-blue-400 after:to-white/80 after:transition-transform hover:after:scale-x-100";
 
 export async function Navbar() {
   const supabase = await createClient();
@@ -20,11 +20,11 @@ export async function Navbar() {
           href="/dashboard"
           className="group flex items-center gap-2 text-lg font-bold tracking-tight text-white transition-colors hover:text-violet-200"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500/35 via-emerald-500/20 to-amber-500/15 ring-1 ring-white/10 transition-transform group-hover:scale-105 motion-reduce:group-hover:scale-100">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500/30 via-white/10 to-amber-500/10 ring-1 ring-white/10 transition-transform group-hover:scale-105 motion-reduce:group-hover:scale-100">
             <Sparkles className="h-4 w-4 text-violet-200" aria-hidden />
           </span>
           <span className="aa-display">
-            Auction<span className="bg-gradient-to-r from-emerald-300 to-violet-300 bg-clip-text text-transparent">Arena</span>
+            Bid<span className="bg-gradient-to-r from-blue-200 to-white bg-clip-text text-transparent">ly</span>
           </span>
         </Link>
         <nav className="flex items-center gap-1 sm:gap-2">
@@ -47,7 +47,7 @@ export async function Navbar() {
               </Button>
             </form>
           ) : (
-            <Button asChild size="sm" variant="default" className="ml-1 shadow-emerald-900/30">
+            <Button asChild size="sm" variant="default" className="ml-1 shadow-blue-900/30">
               <Link href="/login">Sign in</Link>
             </Button>
           )}

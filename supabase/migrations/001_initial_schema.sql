@@ -1,4 +1,4 @@
--- AuctionArena — initial schema (run on Supabase SQL editor or supabase db push)
+-- Bidly — initial schema (run on Supabase SQL editor or supabase db push)
 
 -- ========== SPORTS ==========
 CREATE TABLE IF NOT EXISTS sports (

@@ -55,7 +55,7 @@ export function ResultsBody({
       const { toPng } = await import("html-to-image");
       const dataUrl = await toPng(node, { pixelRatio: 2, cacheBust: true });
       const link = document.createElement("a");
-      link.download = `auctionarena-${roomId.slice(0, 8)}.png`;
+      link.download = `bidly-${roomId.slice(0, 8)}.png`;
       link.href = dataUrl;
       link.click();
       toast.success("Image downloaded — share it anywhere.");
@@ -71,7 +71,7 @@ export function ResultsBody({
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `${roomName} · AuctionArena`,
+          title: `${roomName} · Bidly`,
           text: "Our auction results are live.",
           url,
         });
@@ -110,7 +110,7 @@ export function ResultsBody({
         className="space-y-4 rounded-xl border border-neutral-700 bg-neutral-950 p-6 text-neutral-100"
         style={{ fontFamily: "system-ui, sans-serif" }}
       >
-        <p className="text-xs uppercase tracking-widest text-emerald-400">AuctionArena</p>
+        <p className="text-xs uppercase tracking-widest text-blue-300">Bidly</p>
         <h2 className="text-xl font-bold">{roomName}</h2>
         <p className="text-sm text-neutral-400">Squads & spend</p>
         {teams.map((t) => (

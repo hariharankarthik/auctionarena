@@ -1,8 +1,8 @@
-# AuctionArena
+# Bidly
 
 Real-time multiplayer auction rooms and season-long fantasy leagues (IPL-first).
 
-**Repository:** [github.com/hariharankarthik/auctionarena](https://github.com/hariharankarthik/auctionarena)
+**Repository:** (update this to your new repo URL once renamed)
 
 Open this folder as your **Cursor / VS Code project root**. Requires **Node.js 20+**.
 
@@ -69,7 +69,7 @@ Optional: `npm run test` (logic tests) and `npm run build` (production build che
     ```
 20. If `git push` asks for credentials: use a [GitHub Personal Access Token](https://github.com/settings/tokens) as the HTTPS password, **or** use SSH:
     ```bash
-    git remote set-url origin git@github.com:hariharankarthik/auctionarena.git
+    git remote set-url origin git@github.com:hariharankarthik/bidly.git
     git push origin main
     ```
 

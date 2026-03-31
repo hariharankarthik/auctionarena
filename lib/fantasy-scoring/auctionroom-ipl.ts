@@ -1,5 +1,5 @@
 /**
- * IPL fantasy scoring aligned with AuctionArena / auctionroom-style rules
+ * IPL fantasy scoring aligned with Bidly / auctionroom-style rules
  * (batting base, milestones "highest only", strike rate tiers, bowling, economy).
  * CricAPI (or any provider) should map scorecard JSON → these structs, then call aggregate helpers.
  */

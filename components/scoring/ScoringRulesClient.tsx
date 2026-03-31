@@ -11,7 +11,7 @@ function Pt({ children, negative }: { children: React.ReactNode; negative?: bool
         "inline-flex min-w-[2.75rem] justify-center rounded-full px-2 py-0.5 text-xs font-bold tabular-nums",
         negative
           ? "bg-red-500/15 text-red-300 ring-1 ring-red-500/25"
-          : "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/25",
+          : "bg-blue-500/15 text-blue-200 ring-1 ring-blue-500/25",
       )}
     >
       {children}
@@ -79,7 +79,7 @@ export function ScoringRulesClient() {
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-4 py-8 sm:px-6">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-500/90">Fantasy</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300/90">Fantasy</p>
         <h1 className="text-3xl font-bold tracking-tight text-white">Scoring system</h1>
         <p className="text-sm text-neutral-400">
           Points mirror the IPL-style rules you shared — milestones use <strong className="text-neutral-200">highest tier only</strong>. Live
@@ -91,7 +91,7 @@ export function ScoringRulesClient() {
       <div className="space-y-3 rounded-2xl border border-violet-500/20 bg-violet-950/20 p-4">
         <h2 className="text-sm font-semibold text-violet-200">Product modes (roadmap)</h2>
         <p className="text-xs text-neutral-400">
-          <strong className="text-neutral-300">AuctionArena today</strong> is digital bidding + Supabase realtime. Your doc describes{" "}
+          <strong className="text-neutral-300">Bidly today</strong> is digital bidding + Supabase realtime. Your doc describes{" "}
           <strong className="text-neutral-300">verbal auction + host assign</strong>, <strong className="text-neutral-300">re-auction</strong>,{" "}
           <strong className="text-neutral-300">snake draft</strong>, and <strong className="text-neutral-300">C / VC multipliers</strong> — those
           are not all built yet; this page locks the <strong className="text-neutral-300">scoring math</strong> the API will use once CricAPI is
