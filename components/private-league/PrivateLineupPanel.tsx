@@ -36,10 +36,13 @@ export function PrivateLineupPanel({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setXi(new Set(initialXi));
-    setC(captainPlayerId);
-    setVc(viceCaptainPlayerId);
-  }, [privateTeamId, captainPlayerId, viceCaptainPlayerId, initialXi]);
+    const squadSize = players.length;
+    const canUseSavedXi = squadSize >= xiSize && Array.isArray(initialXi) && initialXi.length === xiSize;
+    const nextXi = canUseSavedXi ? initialXi : [];
+    setXi(new Set(nextXi));
+    setC(canUseSavedXi && captainPlayerId && nextXi.includes(captainPlayerId) ? captainPlayerId : null);
+    setVc(canUseSavedXi && viceCaptainPlayerId && nextXi.includes(viceCaptainPlayerId) ? viceCaptainPlayerId : null);
+  }, [privateTeamId, captainPlayerId, viceCaptainPlayerId, initialXi, players, xiSize]);
 
   const squadIds = useMemo(() => new Set(players.map((p) => p.playerId)), [players]);
   const maxStarters = squadIds.size ? Math.min(xiSize, squadIds.size) : 0;
