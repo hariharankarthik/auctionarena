@@ -9,9 +9,9 @@ import { parseCricApiMatchUuid } from "@/lib/cricapi/match-id";
 import { mapCricApiExtractedToPerformances } from "@/lib/cricapi/map-player-names";
 import {
   extractPerformancesFromCricApiJson,
-  fetchCricApiScorecardJson,
   mergeBowlingFromCricApiJson,
 } from "@/lib/cricapi/fetch-scorecard";
+import { fetchScorecardWithFallback } from "@/lib/scoring/fetch-with-fallback";
 import { isCricApiError, classifyCricApiError } from "@/lib/cricapi/errors";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -144,12 +144,14 @@ export async function POST(req: NextRequest) {
   let cricExtractedCount = 0;
   let cricSampleNames: string[] = [];
 
+  let dataSource: "cricapi" | "cricsheet_cache" | undefined;
+
   if (cricapi_match_id && String(cricapi_match_id).trim()) {
     cricapiUsed = true;
     try {
-      const raw = await fetchCricApiScorecardJson(effectiveMatchId);
-      let extracted = extractPerformancesFromCricApiJson(raw);
-      extracted = mergeBowlingFromCricApiJson(extracted, raw);
+      const result = await fetchScorecardWithFallback(effectiveMatchId, supabase);
+      const extracted = result.performances;
+      dataSource = result.provider;
       cricExtractedCount = extracted.length;
       cricSampleNames = extracted.slice(0, 25).map((e) => e.playerName);
 
@@ -183,13 +185,14 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "CricAPI scorecard had no batting rows that matched our parser. We fetched the scorecard successfully, but parsing found extracted_batters = 0.",
+              `Scorecard (via ${dataSource ?? "cricapi"}) had no batting rows that matched our parser.`,
             extracted_batters: cricExtractedCount,
             sample_cricapi_names: cricSampleNames,
             unmatched_names: [],
             hint:
               "The payload structure for this scorecard differs from what we expect. Check the returned scorecard_shape and we’ll tune the extractor to match.",
-            scorecard_shape: summarize(raw),
+            scorecard_shape: result.raw ? summarize(result.raw) : null,
+            data_source: dataSource,
           },
           { status: 400 },
         );
@@ -315,6 +318,7 @@ export async function POST(req: NextRequest) {
       success: true,
       updated: rows.length,
       mode: cricapiUsed ? "cricapi" : "performances",
+      data_source: dataSource ?? (cricapiUsed ? "cricapi" : "manual"),
       performances_applied: applied,
       ...(unmatchedNames?.length ? { unmatched_names: unmatchedNames } : {}),
     });

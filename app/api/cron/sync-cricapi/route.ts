@@ -5,9 +5,9 @@ import { extractMatchIdsFromCurrentMatchesJson } from "@/lib/cricapi/discover-ma
 import { mapCricApiExtractedToPerformances } from "@/lib/cricapi/map-player-names";
 import {
   extractPerformancesFromCricApiJson,
-  fetchCricApiScorecardJson,
   mergeBowlingFromCricApiJson,
 } from "@/lib/cricapi/fetch-scorecard";
+import { fetchScorecardWithFallback } from "@/lib/scoring/fetch-with-fallback";
 import { CricApiError } from "@/lib/cricapi/errors";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -266,10 +266,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Fetch scorecard once per match id
-    const raw = await fetchCricApiScorecardJson(matchId);
-    let extracted = extractPerformancesFromCricApiJson(raw);
-    extracted = mergeBowlingFromCricApiJson(extracted, raw);
+    // Fetch scorecard once per match id (with Cricsheet fallback on rate-limit)
+    const result = await fetchScorecardWithFallback(matchId, supabaseAdmin);
+    const extracted = result.performances;
 
     for (const league of leagues ?? []) {
       if (!league.room_id) continue;
