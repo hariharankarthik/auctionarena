@@ -8,10 +8,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function JoinModal() {
+export function JoinModal({
+  initialOpen = false,
+  initialCode = "",
+}: {
+  initialOpen?: boolean;
+  initialCode?: string;
+} = {}) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [code, setCode] = useState("");
+  const [open, setOpen] = useState(initialOpen);
+  const [code, setCode] = useState(initialCode);
   const [teamName, setTeamName] = useState("");
   const [loading, setLoading] = useState(false);
 

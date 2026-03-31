@@ -24,7 +24,7 @@ export function Leaderboard({ scores, teams }: { scores: ScoreRow[]; teams: Leag
                 <span className="mr-2 text-neutral-500">{i + 1}.</span>
                 {names.get(teamId) ?? teamId}
               </span>
-              <span className="font-mono text-emerald-300">{pts.toFixed(1)}</span>
+              <span className="font-mono text-blue-200">{pts.toFixed(1)}</span>
             </li>
           ))
         )}

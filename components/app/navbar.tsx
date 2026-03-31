@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { signOutAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
-import { Sparkles } from "lucide-react";
+import { LogOut, Sparkles } from "lucide-react";
 
 const navLink =
   "relative rounded-md px-2 py-1.5 text-sm text-neutral-400 transition-colors hover:text-white after:absolute after:bottom-0 after:left-2 after:right-2 after:h-px after:origin-left after:scale-x-0 after:bg-gradient-to-r after:from-blue-400 after:to-white/80 after:transition-transform hover:after:scale-x-100";
@@ -42,8 +42,9 @@ export async function Navbar() {
           </Link>
           {user ? (
             <form action={signOutAction} className="ml-1">
-              <Button type="submit" variant="ghost" size="sm" className="text-neutral-400 hover:text-white">
-                Out
+              <Button type="submit" variant="ghost" size="sm" className="gap-2 text-neutral-400 hover:text-white">
+                <LogOut className="h-4 w-4" aria-hidden />
+                <span className="hidden sm:inline">Sign out</span>
               </Button>
             </form>
           ) : (

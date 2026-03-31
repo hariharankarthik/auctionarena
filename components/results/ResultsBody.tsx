@@ -168,7 +168,7 @@ export function ResultsBody({
                     · {p.role}
                     {p.isOverseas ? " · OS" : ""}
                   </span>
-                  <div className="text-emerald-300">{formatCurrencyLakhsToCr(p.soldPrice)}</div>
+                  <div className="text-blue-200">{formatCurrencyLakhsToCr(p.soldPrice)}</div>
                 </li>
               ))}
             </ul>

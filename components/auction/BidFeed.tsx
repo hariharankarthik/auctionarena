@@ -18,7 +18,7 @@ export function BidFeed({ bids, teams }: { bids: BidRow[]; teams: AuctionTeam[] 
               <span className="text-neutral-400">
                 {new Date(b.created_at).toLocaleTimeString()} · {nameById.get(b.team_id) ?? "Team"}
               </span>
-              <span className="font-medium text-emerald-300">{formatCurrencyLakhsToCr(b.amount)}</span>
+              <span className="font-medium text-blue-200">{formatCurrencyLakhsToCr(b.amount)}</span>
             </li>
           ))}
         </ul>

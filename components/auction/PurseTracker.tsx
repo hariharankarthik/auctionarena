@@ -25,7 +25,7 @@ export function PurseTracker({ teams, sportId }: { teams: AuctionTeam[]; sportId
                 <span className="text-neutral-200">{formatCurrencyLakhsToCr(t.remaining_purse, symbol)}</span>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-neutral-800">
-                <div className="h-full rounded-full bg-emerald-600/80" style={{ width: `${pct}%` }} />
+              <div className="h-full rounded-full bg-blue-600/80" style={{ width: `${pct}%` }} />
               </div>
             </li>
           );

@@ -22,11 +22,11 @@ export function SoldOverlay({ open, label }: { open: boolean; label: string }) {
             className={`rounded-2xl border px-10 py-7 text-center shadow-2xl ${
               unsold
                 ? "border-amber-500/50 bg-amber-950/95"
-                : "border-emerald-500/50 bg-emerald-950/95"
+                : "border-blue-500/50 bg-blue-950/95"
             }`}
           >
             <motion.p
-              className={`text-4xl font-black tracking-tight sm:text-5xl ${unsold ? "text-amber-200" : "text-emerald-300"}`}
+              className={`text-4xl font-black tracking-tight sm:text-5xl ${unsold ? "text-amber-200" : "text-blue-200"}`}
               initial={{ y: 8, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.05 }}

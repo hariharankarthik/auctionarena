@@ -53,7 +53,7 @@ export function PrivateLeagueCreateForm() {
       <p className="text-xs text-neutral-500">
         Sport: <span className="text-neutral-300">{IPL_2026.displayName}</span> · no auction room — you’ll import squads from a sheet.
       </p>
-      <Button type="submit" disabled={busy} className="bg-gradient-to-r from-violet-600 to-emerald-600 text-white hover:opacity-95">
+      <Button type="submit" disabled={busy} className="bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:opacity-95">
         {busy ? "Creating…" : "Create private league"}
       </Button>
     </form>

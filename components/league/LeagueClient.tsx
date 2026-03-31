@@ -74,7 +74,7 @@ export function LeagueClient({
   return (
     <div className="space-y-6">
       {title ? (
-        <div className="aa-card-interactive rounded-xl border border-white/10 bg-gradient-to-r from-violet-950/40 via-neutral-950/50 to-emerald-950/25 px-4 py-3">
+        <div className="aa-card-interactive rounded-xl border border-white/10 bg-gradient-to-r from-blue-950/25 via-neutral-950/55 to-white/5 px-4 py-3">
           <h2 className="text-lg font-semibold tracking-tight text-white">{title}</h2>
           {importHref && isHost ? (
             <p className="mt-1 text-xs text-neutral-400">
@@ -87,7 +87,7 @@ export function LeagueClient({
       ) : null}
       <p className="text-xs text-neutral-500">
         How points work:{" "}
-        <Link href="/scoring" className="text-emerald-400 underline-offset-2 hover:underline">
+        <Link href="/scoring" className="text-blue-300 underline-offset-2 hover:underline">
           Scoring system
         </Link>
         . Host can still run mock rows for demos; real matches use the fantasy engine via <code className="rounded bg-neutral-800 px-1">performances</code> in the API.

@@ -108,7 +108,7 @@ export function LineupPanel({
   }
 
   return (
-    <div className="mt-4 overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-b from-emerald-950/20 to-neutral-950/60">
+    <div className="mt-4 overflow-hidden rounded-2xl border border-blue-500/20 bg-gradient-to-b from-blue-950/15 to-white/5 backdrop-blur-xl">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-neutral-800/80 p-4">
         <div>
           <p className="text-sm font-semibold text-white">Starting XI</p>
@@ -117,7 +117,7 @@ export function LineupPanel({
             1.5×.
           </p>
         </div>
-        <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200 ring-1 ring-emerald-500/20">
+        <div className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-200 ring-1 ring-blue-500/20">
           {displayedStarterCount}/{maxStarters || MAX} selected
         </div>
       </div>
@@ -132,8 +132,8 @@ export function LineupPanel({
               key={p.playerId}
               className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-sm ${
                 on
-                  ? "border-emerald-500/25 bg-emerald-950/20"
-                  : "border-neutral-800 bg-neutral-950/40"
+                  ? "border-blue-500/25 bg-blue-950/15"
+                  : "border-white/10 bg-white/5"
               }`}
             >
               <label className={`flex flex-1 items-center gap-2 ${locked ? "cursor-default" : "cursor-pointer"}`}>
@@ -142,7 +142,7 @@ export function LineupPanel({
                   checked={on}
                   disabled={locked}
                   onChange={() => toggle(p.playerId)}
-                  className="h-4 w-4 rounded border-neutral-600 text-emerald-500"
+                  className="h-4 w-4 rounded border-neutral-600 text-blue-500"
                 />
                 <span>
                   <span className="font-medium text-neutral-100">{p.name}</span>{" "}
@@ -157,7 +157,7 @@ export function LineupPanel({
                     disabled={locked}
                     className={`rounded-full px-2 py-1 font-semibold ring-1 transition-colors ${
                       isC
-                        ? "bg-emerald-500/15 text-emerald-200 ring-emerald-500/30"
+                        ? "bg-blue-500/15 text-blue-200 ring-blue-500/30"
                         : "bg-neutral-900/40 text-neutral-400 ring-neutral-700/80 hover:text-neutral-200 disabled:hover:text-neutral-400"
                     }`}
                     title={isVC ? "Captain and vice-captain must be different" : "Set as captain"}
@@ -208,7 +208,7 @@ export function LineupPanel({
         </span>
         {c && vc ? (
           <span className="ml-auto text-xs text-neutral-500">
-            Saved as: <span className="text-emerald-200">C</span> + <span className="text-sky-200">VC</span>
+            Saved as: <span className="text-blue-200">C</span> + <span className="text-sky-200">VC</span>
           </span>
         ) : (
           <span className="ml-auto text-xs text-neutral-600">Pick C and VC from your starters (optional).</span>
@@ -235,7 +235,7 @@ export function LineupPanel({
           </p>
           <p className="mt-2 text-sm text-neutral-400">
             Captain:{" "}
-            <span className="font-medium text-emerald-200">{saved.c ? nameById.get(saved.c) ?? saved.c : "—"}</span>
+            <span className="font-medium text-blue-200">{saved.c ? nameById.get(saved.c) ?? saved.c : "—"}</span>
             <span className="mx-2 text-neutral-700">|</span>
             Vice-captain:{" "}
             <span className="font-medium text-sky-200">{saved.vc ? nameById.get(saved.vc) ?? saved.vc : "—"}</span>

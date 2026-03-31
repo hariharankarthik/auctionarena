@@ -179,7 +179,7 @@ export function ImportTeamsClient({ leagueId }: { leagueId: string }) {
           type="button"
           disabled={busy || !text.trim() || !playerCol}
           onClick={() => void runImport()}
-          className="bg-gradient-to-r from-violet-600 to-emerald-600 text-white"
+          className="bg-gradient-to-r from-blue-600 to-blue-500 text-white"
         >
           Import teams
         </Button>

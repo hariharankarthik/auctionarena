@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Radio, Trophy, Zap } from "lucide-react";
+import { Bot, KeyRound, Radio, Trophy, Zap } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useMemo, useState } from "react";
 
 const SOCIAL = [
   { quote: "Finally ran a clean mega auction with my office league.", who: "Ahmed · Bangalore" },
@@ -23,6 +25,13 @@ const fadeUp = {
 };
 
 export default function Home() {
+  const [invite, setInvite] = useState("");
+  const inviteHref = useMemo(() => {
+    const code = invite.trim().toUpperCase();
+    const next = code ? `/dashboard?join=${encodeURIComponent(code)}` : "/dashboard";
+    return `/login?next=${encodeURIComponent(next)}`;
+  }, [invite]);
+
   return (
     <main
       id="main-content"
@@ -53,10 +62,26 @@ export default function Home() {
             <Button asChild size="lg" className="h-12 min-w-[200px] text-base sm:h-12">
               <Link href="/login?next=/room/create">Start a free auction</Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="h-12 min-w-[200px] text-base sm:h-12">
-              <Link href="/login?next=/dashboard">I have an invite code</Link>
+          </div>
+          <div className="mx-auto flex w-full max-w-xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-center">
+            <div className="relative flex-1">
+              <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-600" aria-hidden />
+              <Input
+                value={invite}
+                onChange={(e) => setInvite(e.target.value)}
+                placeholder="Enter invite code"
+                className="h-12 pl-10 text-base"
+                inputMode="text"
+                autoCapitalize="characters"
+              />
+            </div>
+            <Button asChild size="lg" variant="outline" className="h-12 text-base">
+              <Link href={inviteHref}>Join</Link>
             </Button>
           </div>
+          <p className="text-xs font-medium text-neutral-500">
+            Open beta · Built for <span className="text-blue-200/90">IPL 2026</span>
+          </p>
           <div className="mx-auto grid max-w-2xl grid-cols-3 gap-3 pt-2 sm:gap-4 sm:pt-4">
             {STATS.map(({ label, value, icon: Icon }) => (
               <div
@@ -81,14 +106,23 @@ export default function Home() {
             {
               title: "Real-time bidding",
               body: "Everyone sees bids and purses update instantly — no refresh, no confusion.",
+              icon: Radio,
+              accent: "border-l-blue-500/40",
+              iconClass: "text-blue-300/90",
             },
             {
               title: "Fantasy league",
               body: "When the hammer stops, the season starts. Leaderboards and charts keep the rivalry alive.",
+              icon: Trophy,
+              accent: "border-l-sky-400/35",
+              iconClass: "text-sky-300/90",
             },
             {
               title: "AI practice",
               body: "Warm up against easy, medium, or hard bots before you face your friends.",
+              icon: Bot,
+              accent: "border-l-amber-400/35",
+              iconClass: "text-amber-300/90",
             },
           ].map((f, i) => (
             <motion.div
@@ -96,10 +130,15 @@ export default function Home() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.12 + i * 0.06, duration: 0.45 }}
-              className="group rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl transition-colors duration-300 hover:border-blue-500/25 hover:bg-white/8 sm:p-6"
+              className={`group rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl transition-colors duration-300 hover:border-blue-500/25 hover:bg-white/8 sm:p-6 border-l-2 ${f.accent}`}
             >
-              <h3 className="text-base font-semibold text-blue-200 sm:text-lg">{f.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-neutral-400 group-hover:text-neutral-300">{f.body}</p>
+              <div className="flex items-start gap-3">
+                <f.icon className={`mt-0.5 h-4 w-4 ${f.iconClass}`} aria-hidden />
+                <div>
+                  <h3 className="text-base font-semibold text-white sm:text-lg">{f.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-neutral-400 group-hover:text-neutral-300">{f.body}</p>
+                </div>
+              </div>
             </motion.div>
           ))}
         </motion.section>

@@ -14,7 +14,7 @@ export default function GlobalError({
         <p className="max-w-md text-center text-sm text-neutral-400">{error.message}</p>
         <button
           type="button"
-          className="rounded-md bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-500"
+          className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-500"
           onClick={reset}
         >
           Try again

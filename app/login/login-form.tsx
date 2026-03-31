@@ -70,10 +70,10 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
       className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#070708] p-5 sm:p-8 outline-none"
     >
       <div className="aa-hero-glow opacity-50" aria-hidden />
-      <Card className="relative w-full max-w-md rounded-2xl border-emerald-500/20 bg-neutral-950/90 shadow-2xl shadow-black/40 ring-1 ring-white/5 backdrop-blur-md">
+      <Card className="relative w-full max-w-md rounded-2xl border-blue-500/20 bg-neutral-950/90 shadow-2xl shadow-black/40 ring-1 ring-white/5 backdrop-blur-md">
         <CardHeader className="space-y-3 text-center sm:text-left">
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/20 to-amber-500/10 ring-1 ring-emerald-500/30 sm:mx-0">
-            <Sparkles className="h-5 w-5 text-emerald-400" aria-hidden />
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/25 to-amber-500/10 ring-1 ring-blue-500/25 sm:mx-0">
+            <Sparkles className="h-5 w-5 text-blue-200" aria-hidden />
           </div>
           <div>
             <CardTitle className="text-2xl font-bold text-white">Welcome in</CardTitle>
@@ -127,7 +127,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
             </div>
           </form>
           <p className="text-center text-sm text-neutral-500">
-            <Link href="/" className="font-medium text-emerald-400 hover:text-emerald-300 hover:underline">
+            <Link href="/" className="font-medium text-blue-300 hover:text-blue-200 hover:underline">
               ← Back to home
             </Link>
           </p>

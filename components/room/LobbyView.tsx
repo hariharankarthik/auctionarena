@@ -101,7 +101,7 @@ export function LobbyView({
   if (room.status === "live" || room.status === "completed") {
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 p-8 text-center">
-        <div className="h-9 w-9 animate-spin rounded-full border-2 border-neutral-700 border-t-emerald-500 motion-reduce:animate-none" aria-hidden />
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-neutral-700 border-t-blue-500 motion-reduce:animate-none" aria-hidden />
         <p className="text-sm text-neutral-400">Taking you to the {room.status === "live" ? "live auction" : "results"}…</p>
       </div>
     );
@@ -110,13 +110,13 @@ export function LobbyView({
   return (
     <div className="mx-auto max-w-2xl space-y-8 p-4 sm:p-8">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-500/90">Pre-match lobby</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300/90">Pre-match lobby</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">{room.name}</h1>
         <p className="mt-2 text-sm text-neutral-400">Invite friends, pick colors, get everyone ready — then go live.</p>
         {room.status === "paused" ? (
           <p className="mt-3 rounded-lg border border-amber-500/25 bg-amber-950/25 px-3 py-2 text-sm text-amber-100/90">
             <strong className="font-medium">Auction paused.</strong> Current player, bids, team purses, and sold players stay in the database — nothing is lost. Host can{" "}
-            <Link href={`/room/${roomId}/auction`} className="text-emerald-400 underline-offset-2 hover:underline">
+            <Link href={`/room/${roomId}/auction`} className="text-blue-300 underline-offset-2 hover:underline">
               open the live board
             </Link>{" "}
             and tap <strong>Resume</strong>, or resume from here.
@@ -129,9 +129,9 @@ export function LobbyView({
         ) : null}
       </div>
 
-      <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-b from-emerald-950/30 to-neutral-950/60 p-5 sm:p-6">
+      <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-b from-blue-950/20 to-white/5 p-5 backdrop-blur-xl sm:p-6">
         <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Invite code</p>
-        <p className="aa-invite-code mt-3 text-center font-mono text-2xl text-emerald-300 sm:text-3xl">{inviteCode}</p>
+        <p className="aa-invite-code mt-3 text-center font-mono text-2xl text-blue-200 sm:text-3xl">{inviteCode}</p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <Button
             type="button"
@@ -225,7 +225,7 @@ export function LobbyView({
       ) : room.status === "paused" ? (
         <p className="text-center text-sm text-neutral-400">
           Auction paused — waiting for the host to resume.{" "}
-          <Link href={`/room/${roomId}/auction`} className="text-emerald-400 underline-offset-2 hover:underline">
+          <Link href={`/room/${roomId}/auction`} className="text-blue-300 underline-offset-2 hover:underline">
             View live board
           </Link>
         </p>

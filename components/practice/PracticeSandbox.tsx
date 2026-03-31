@@ -143,7 +143,7 @@ export function PracticeSandbox() {
           </label>
           <p className="text-lg font-semibold text-white">{lot.name}</p>
           <p>
-            Current bid: <span className="text-emerald-300">{formatCurrencyLakhsToCr(currentBid)}</span>
+            Current bid: <span className="text-blue-200">{formatCurrencyLakhsToCr(currentBid)}</span>
           </p>
           <div className="flex flex-wrap gap-2">
             <Button onClick={humanBid}>You +20L</Button>

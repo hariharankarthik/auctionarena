@@ -10,7 +10,13 @@ import { IPL_2026 } from "@/lib/sports/ipl";
 import { NFL_2026 } from "@/lib/sports/nfl";
 import { PlusCircle, Sparkles, Users, Wand2 } from "lucide-react";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = (await searchParams) ?? {};
+  const join = typeof sp.join === "string" ? sp.join.trim().toUpperCase() : "";
   const supabase = await createClient();
   const {
     data: { user },
@@ -63,20 +69,20 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-10 px-4 py-8 sm:px-6 sm:py-10">
-      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-violet-950/45 via-neutral-950/70 to-emerald-950/25 p-6 sm:p-8 shadow-[0_0_80px_-20px_rgba(139,92,246,0.35)]">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_60%_at_100%_-10%,rgba(16,185,129,0.12),transparent)]" />
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-blue-950/35 via-neutral-950/70 to-white/5 p-6 sm:p-8 shadow-[0_0_80px_-20px_rgba(59,130,246,0.28)]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_60%_at_100%_-10%,rgba(59,130,246,0.14),transparent)]" />
         <div className="relative z-10">
-          <p className="text-sm font-medium text-violet-300/90">Welcome back</p>
+          <p className="text-sm font-medium text-blue-300/90">Welcome back</p>
           <h1 className="aa-display mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">{displayName}</h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-neutral-400 sm:text-base">
             Run a mega auction room, or spin up a{" "}
-            <span className="text-violet-200/95">private sheet league</span> — import squads and keep the same fantasy scoring.
+            <span className="text-blue-200/95">import a league</span> — paste squads from a sheet and keep the same fantasy scoring.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Button
               asChild
               size="lg"
-              className="h-11 gap-2 border border-emerald-400/20 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-900/30 sm:min-w-[200px]"
+              className="h-11 gap-2 border border-blue-400/20 bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-900/30 sm:min-w-[200px]"
             >
               <Link href="/room/create">
                 <PlusCircle className="h-4 w-4" aria-hidden />
@@ -91,13 +97,16 @@ export default async function DashboardPage() {
             >
               <Link href="/league/private/create">
                 <Wand2 className="h-4 w-4" aria-hidden />
-                Private sheet league
+                Import a league
               </Link>
             </Button>
-            <div className="flex h-11 items-center justify-center sm:justify-start">
-              <JoinModal />
+            <div className="flex h-11 items-center justify-center sm:justify-start" title="Join a room using an invite code from your host.">
+              <JoinModal initialOpen={Boolean(join)} initialCode={join} />
             </div>
           </div>
+          <p className="mt-3 text-xs text-neutral-500">
+            <span className="text-neutral-300">Import a league</span> is for squads drafted offline — paste a sheet and track fantasy scores here.
+          </p>
         </div>
       </div>
 
@@ -131,11 +140,11 @@ export default async function DashboardPage() {
       <section className="space-y-4">
         <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">Seasons</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Card className="overflow-hidden border-emerald-500/25 bg-gradient-to-b from-emerald-950/40 to-neutral-950/85 shadow-lg shadow-emerald-950/25">
+          <Card className="overflow-hidden border-blue-500/25 bg-gradient-to-b from-blue-950/25 to-white/5 shadow-lg shadow-blue-950/20">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center justify-between text-lg">
                 {IPL_2026.displayName}
-                <Badge className="border-0 bg-emerald-500/25 text-emerald-100">Live</Badge>
+                <Badge className="border-0 bg-blue-500/20 text-blue-100">Live</Badge>
               </CardTitle>
               <CardDescription className="text-neutral-400">Cricket · mega auction + post-draft fantasy</CardDescription>
             </CardHeader>

@@ -15,13 +15,13 @@ export function PlayerCard({ player, baseLabel = "Base" }: { player: PlayerRow |
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-b from-neutral-900/95 via-neutral-950 to-neutral-950 p-6 shadow-[0_0_40px_-12px_rgba(16,185,129,0.25)] ring-1 ring-white/5 sm:p-7">
-      <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-emerald-500/10 blur-3xl" aria-hidden />
+    <div className="relative overflow-hidden rounded-2xl border border-blue-500/20 bg-gradient-to-b from-neutral-900/95 via-neutral-950 to-neutral-950 p-6 shadow-[0_0_42px_-12px_rgba(59,130,246,0.22)] ring-1 ring-white/5 sm:p-7">
+      <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-blue-500/10 blur-3xl" aria-hidden />
       <div className="relative flex items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{player.name}</h2>
           <p className="mt-2 text-sm text-neutral-400">
-            <span className="font-medium text-emerald-200/90">{player.role}</span>
+            <span className="font-medium text-blue-200/90">{player.role}</span>
             {player.nationality ? <span> · {player.nationality}</span> : null}
             {player.is_overseas ? <span className="text-amber-200/80"> · Overseas</span> : null}
           </p>
@@ -32,7 +32,7 @@ export function PlayerCard({ player, baseLabel = "Base" }: { player: PlayerRow |
           </Badge>
         ) : null}
       </div>
-      <p className="relative mt-5 text-lg font-semibold text-emerald-300 sm:text-xl">
+      <p className="relative mt-5 text-lg font-semibold text-blue-200 sm:text-xl">
         {baseLabel}: {formatCurrencyLakhsToCr(player.base_price)}
       </p>
       {player.stats && Object.keys(player.stats).length > 0 ? (
