@@ -1,5 +1,5 @@
 import type { DbPlayer } from "@/lib/cricapi/map-player-names";
-import { matchDbPlayerForCricApiName } from "@/lib/cricapi/map-player-names";
+import { normalizeName } from "@/lib/cricapi/fetch-scorecard";
 import { detectDelimiter, parseDelimited } from "@/lib/csv/parse-delimited";
 
 export type SheetColumnMapping = {
@@ -74,6 +74,19 @@ export type BuiltPrivateTeam = {
   vice_captain_player_id: string | null;
 };
 
+/**
+ * Sheet imports should be strict: avoid last-name-only matches that can silently map
+ * "Rohit Sharma" -> "Abhishek Sharma" if the pool is incomplete.
+ *
+ * We normalize punctuation/whitespace (same as CricAPI) and require an exact match.
+ * Missing names are handled upstream by inserting placeholder `players` rows.
+ */
+function matchDbPlayerForSheetName(list: DbPlayer[], sheetName: string): DbPlayer | null {
+  const key = normalizeName(sheetName);
+  if (!key) return null;
+  return list.find((p) => normalizeName(p.name) === key) ?? null;
+}
+
 export function buildPrivateTeamsFromRows(
   dbPlayers: DbPlayer[],
   rows: NormalizedSheetRow[],
@@ -101,7 +114,7 @@ export function buildPrivateTeamsFromRows(
     let vice: string | null = null;
 
     for (const tr of teamRows) {
-      const p = matchDbPlayerForCricApiName(dbPlayers, tr.playerName);
+      const p = matchDbPlayerForSheetName(dbPlayers, tr.playerName);
       if (!p) {
         unmatched.push(tr.playerName);
         continue;
