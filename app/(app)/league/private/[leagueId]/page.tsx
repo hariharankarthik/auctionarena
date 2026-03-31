@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { LeagueTeamDisplay } from "@/lib/sports/types";
 import { PlayerMeta } from "@/components/player/PlayerMeta";
+import { ClaimTeamButton } from "@/components/private-league/ClaimTeamButton";
+import { PrivateLineupPanel, type PrivateTeamPlayer } from "@/components/private-league/PrivateLineupPanel";
 
 export default async function PrivateLeaguePage({ params }: { params: Promise<{ leagueId: string }> }) {
   const { leagueId } = await params;
@@ -24,7 +26,7 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
 
   const { data: privateTeams } = await supabase
     .from("private_league_teams")
-    .select("id, team_name, team_color, squad_player_ids, captain_player_id, vice_captain_player_id")
+    .select("id, team_name, team_color, squad_player_ids, starting_xi_player_ids, captain_player_id, vice_captain_player_id, claimed_by")
     .eq("league_id", leagueId);
 
   const teams: LeagueTeamDisplay[] = (privateTeams ?? []).map((t) => ({
@@ -34,6 +36,7 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
   }));
 
   const isHost = user?.id === league.host_id;
+  const myClaimedTeamId = (privateTeams ?? []).find((t) => (t.claimed_by as string | null) === user?.id)?.id ?? null;
 
   const playerIds = [...new Set((privateTeams ?? []).flatMap((t) => (t.squad_player_ids as string[]) ?? []))];
   const { data: playerRows } = playerIds.length
@@ -83,6 +86,14 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
             <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">Rosters</h2>
             <span className="text-xs text-neutral-600">{privateTeams.length} teams</span>
           </div>
+          {!myClaimedTeamId ? (
+            <div className="rounded-xl border border-white/10 bg-neutral-950/50 p-4 text-sm text-neutral-300">
+              <p className="font-medium text-white">Claim your team</p>
+              <p className="mt-1 text-xs text-neutral-500">
+                Pick the team you own in this league. Once claimed, you can set your Playing XI and C/VC.
+              </p>
+            </div>
+          ) : null}
           <div className="grid gap-3">
             {privateTeams.map((t) => {
               const squad = ((t.squad_player_ids as string[]) ?? [])
@@ -91,6 +102,9 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
               const overseas = squad.filter((p) => p.is_overseas).length;
               const cId = t.captain_player_id as string | null;
               const vcId = t.vice_captain_player_id as string | null;
+              const claimedBy = (t.claimed_by as string | null) ?? null;
+              const isMine = Boolean(user?.id && claimedBy === user.id);
+              const canClaim = Boolean(user?.id) && !claimedBy && !myClaimedTeamId;
 
               return (
                 <details
@@ -111,7 +125,11 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
                         </p>
                       </div>
                     </div>
-                    <span className="text-xs text-neutral-500 group-open:text-neutral-300">Toggle</span>
+                    <div className="flex items-center gap-2">
+                      {isMine ? <span className="text-xs font-semibold text-blue-200">Your team</span> : null}
+                      {canClaim ? <ClaimTeamButton leagueId={leagueId} teamId={t.id} /> : null}
+                      <span className="text-xs text-neutral-500 group-open:text-neutral-300">Toggle</span>
+                    </div>
                   </summary>
 
                   <div className="mt-4 grid gap-2">
@@ -147,6 +165,25 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
                       </Card>
                     ) : null}
                   </div>
+
+                  {isMine ? (
+                    <PrivateLineupPanel
+                      privateTeamId={t.id}
+                      players={squad.map(
+                        (p) =>
+                          ({
+                            playerId: p.id,
+                            name: p.name,
+                            role: p.role,
+                            nationality: p.nationality,
+                            isOverseas: p.is_overseas,
+                          }) satisfies PrivateTeamPlayer,
+                      )}
+                      initialXi={Array.isArray(t.starting_xi_player_ids) ? (t.starting_xi_player_ids as string[]) : []}
+                      captainPlayerId={t.captain_player_id as string | null}
+                      viceCaptainPlayerId={t.vice_captain_player_id as string | null}
+                    />
+                  ) : null}
                 </details>
               );
             })}
