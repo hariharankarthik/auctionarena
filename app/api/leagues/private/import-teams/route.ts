@@ -53,7 +53,44 @@ export async function POST(req: NextRequest) {
     .eq("sport_id", league.sport_id);
   if (pErr) return NextResponse.json({ error: pErr.message }, { status: 500 });
 
-  const { teams, unmatched, duplicate_player_warnings } = buildPrivateTeamsFromRows(players ?? [], rows);
+  const firstPass = buildPrivateTeamsFromRows(players ?? [], rows);
+
+  // If players are missing from the DB, create placeholder rows so imports "just work".
+  // This avoids forcing admins to pre-seed a full auction pool before sheet import.
+  const missingNames = firstPass.unmatched
+    .map((n) => n.trim().replace(/\s+/g, " "))
+    .filter(Boolean);
+
+  if (missingNames.length) {
+    const unique = [...new Set(missingNames)];
+    // Insert only names that don't already exist (case-insensitive).
+    const existingLower = new Set((players ?? []).map((p) => p.name.trim().toLowerCase()));
+    const toInsert = unique.filter((n) => !existingLower.has(n.toLowerCase()));
+
+    if (toInsert.length) {
+      const insertRows = toInsert.map((name) => ({
+        sport_id: league.sport_id,
+        name,
+        nationality: null as string | null,
+        is_overseas: false,
+        role: "BAT",
+        base_price: 0,
+        tier: null as string | null,
+        stats: {},
+        image_url: null as string | null,
+      }));
+      const { error: insPlayersErr } = await supabase.from("players").insert(insertRows);
+      if (insPlayersErr) return NextResponse.json({ error: insPlayersErr.message }, { status: 500 });
+    }
+  }
+
+  const { data: players2, error: p2Err } = await supabase
+    .from("players")
+    .select("id, name")
+    .eq("sport_id", league.sport_id);
+  if (p2Err) return NextResponse.json({ error: p2Err.message }, { status: 500 });
+
+  const { teams, unmatched, duplicate_player_warnings } = buildPrivateTeamsFromRows(players2 ?? [], rows);
 
   if (body.dry_run) {
     return NextResponse.json({
@@ -69,6 +106,18 @@ export async function POST(req: NextRequest) {
       unmatched_names: unmatched,
       warnings: duplicate_player_warnings,
     });
+  }
+
+  // Duplicates are almost always a sheet bug; don't silently drop rows on real import.
+  const hardDuplicateWarnings = duplicate_player_warnings.filter((w) => w.includes("already on "));
+  if (hardDuplicateWarnings.length) {
+    return NextResponse.json(
+      {
+        error: "Duplicate player assignments detected. Fix the sheet so each player appears on only one team.",
+        warnings: hardDuplicateWarnings,
+      },
+      { status: 400 },
+    );
   }
 
   if (teams.length === 0) {
