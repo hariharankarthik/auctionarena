@@ -37,6 +37,24 @@ export default async function DashboardPage({
     .eq("league_kind", "private")
     .order("created_at", { ascending: false });
 
+  const hostedPrivateIds = new Set((privateHosted ?? []).map((p) => p.id));
+  const { data: claimedTeams } = await supabase
+    .from("private_league_teams")
+    .select("league_id")
+    .eq("claimed_by", user.id);
+  const claimedLeagueIds = [...new Set((claimedTeams ?? []).map((r) => r.league_id as string))].filter(
+    (id) => !hostedPrivateIds.has(id),
+  );
+  const { data: privateMemberLeagues } =
+    claimedLeagueIds.length > 0
+      ? await supabase
+          .from("fantasy_leagues")
+          .select("id, name, invite_code, sport_id, created_at")
+          .in("id", claimedLeagueIds)
+          .eq("league_kind", "private")
+          .order("created_at", { ascending: false })
+      : { data: [] };
+
   const { data: memberships } = await supabase
     .from("auction_teams")
     .select("room_id, auction_rooms (*)")
@@ -130,6 +148,39 @@ export default async function DashboardPage({
                   <p className="font-medium text-neutral-100 group-hover:text-white">{pl.name}</p>
                   <p className="text-xs text-neutral-500">
                     Code <span className="font-mono text-violet-300/90">{pl.invite_code}</span> ·{" "}
+                    <span className="text-neutral-600">/join/{pl.invite_code}</span>
+                  </p>
+                </div>
+                <span className="text-xs text-violet-300/80 group-hover:text-violet-200">Open →</span>
+              </ClickableCardLink>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {privateMemberLeagues && privateMemberLeagues.length > 0 ? (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-violet-400" aria-hidden />
+            <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+              Private leagues you&apos;re in
+            </h2>
+          </div>
+          <p className="text-xs text-neutral-600">
+            You claimed a team in these leagues — open anytime. Use <span className="font-mono text-violet-300/80">/join/</span> with the
+            code if this list is empty after signing in with a different account.
+          </p>
+          <div className="grid gap-3">
+            {privateMemberLeagues.map((pl) => (
+              <ClickableCardLink
+                key={pl.id}
+                href={`/league/private/${pl.id}`}
+                className="flex items-center justify-between rounded-xl border border-violet-500/20 bg-neutral-950/50 px-4 py-3"
+              >
+                <div>
+                  <p className="font-medium text-neutral-100 group-hover:text-white">{pl.name}</p>
+                  <p className="text-xs text-neutral-500">
+                    Team owner · Code <span className="font-mono text-violet-300/90">{pl.invite_code}</span> ·{" "}
                     <span className="text-neutral-600">/join/{pl.invite_code}</span>
                   </p>
                 </div>
