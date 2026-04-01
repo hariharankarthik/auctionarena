@@ -74,14 +74,13 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
   const playersById = new Map((playerRows ?? []).map((p) => [p.id, p]));
 
   // Free agents: players in the same sport not on any team's squad
+  // Uses RPC (POST body) to avoid URL length limits with large exclusion lists
   const pickedIds = playerIds; // already deduplicated
-  const { data: freeAgentRows } = await supabase
-    .from("players")
-    .select("id, name, role, nationality, is_overseas, base_price")
-    .eq("sport_id", league.sport_id)
-    .not("id", "in", pickedIds.length ? `(${pickedIds.join(",")})` : "(00000000-0000-0000-0000-000000000000)")
-    .order("base_price", { ascending: false });
-  const freeAgents: FreeAgent[] = (freeAgentRows ?? []).map((p) => ({
+  const { data: freeAgentRows } = await supabase.rpc("get_free_agents", {
+    p_sport_id: league.sport_id,
+    p_excluded_ids: pickedIds.length ? pickedIds : [],
+  });
+  const freeAgents: FreeAgent[] = ((freeAgentRows ?? []) as { id: string; name: string; role: string; nationality: string | null; is_overseas: boolean; base_price: number }[]).map((p) => ({
     id: p.id,
     name: p.name,
     role: p.role,

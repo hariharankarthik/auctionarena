@@ -37,14 +37,17 @@ export function FreeAgentsList({ players }: { players: FreeAgent[] }) {
         <input
           type="text"
           placeholder="Search by name…"
+          aria-label="Search free agents by name"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="h-8 w-48 rounded-lg border border-white/10 bg-neutral-950/50 px-3 text-xs text-neutral-200 placeholder:text-neutral-600 focus:border-violet-500/40 focus:outline-none"
         />
-        <div className="flex gap-1">
+        <div className="flex gap-1" role="radiogroup" aria-label="Filter by role">
           {ROLE_FILTERS.map((r) => (
             <button
               key={r}
+              role="radio"
+              aria-checked={roleFilter === r}
               onClick={() => setRoleFilter(r)}
               className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
                 roleFilter === r
