@@ -91,13 +91,12 @@ export function PrivateLineupPanel({
         if (c === pid) setC(null);
         if (vc === pid) setVc(null);
       } else {
-        if (next.size >= maxStarters) {
+        if (!canSetFullXi) {
           toast.error(`You need ${xiSize} players on your squad to set a Playing XI`);
           return prev;
         }
-        if (!canSetFullXi) return prev;
         if (next.size >= xiSize) {
-          toast.error(`Playing XI must have exactly ${xiSize} players`);
+          toast.error(`Playing XI already has ${xiSize} players — deselect one first`);
           return prev;
         }
         const pick = players.find((p) => p.playerId === pid);
