@@ -32,8 +32,9 @@ export function LobbyView({
 
   const appUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
-    return `${window.location.origin}/room/${roomId}/lobby`;
-  }, [roomId]);
+    // Universal join URL so the same link works pre-auth.
+    return `${window.location.origin}/join/${encodeURIComponent(inviteCode)}`;
+  }, [inviteCode]);
 
   const readyCount = teams.filter((t) => t.is_ready).length;
   const allReady = teams.length >= MIN_TEAMS_TO_START && teams.every((t) => t.is_ready);
@@ -148,7 +149,7 @@ export function LobbyView({
           </Button>
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             size="sm"
             className="gap-2"
             onClick={async () => {
@@ -193,7 +194,7 @@ export function LobbyView({
             <PartyPopper className="h-4 w-4" aria-hidden />
             I&apos;m ready
           </Button>
-          <Button type="button" variant="outline" onClick={() => void toggleReady(false)}>
+          <Button type="button" variant="secondary" onClick={() => void toggleReady(false)}>
             Not ready yet
           </Button>
         </div>

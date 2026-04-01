@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { RoomCard } from "@/components/room/RoomCard";
-import { JoinModal } from "@/components/room/JoinModal";
+import { JoinInline } from "@/components/room/JoinModal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -75,11 +75,9 @@ export default async function DashboardPage({
             className="items-center"
             title={<span className="aa-display text-2xl font-bold tracking-tight sm:text-3xl">{displayName}</span>}
             subtitle={
-              <span className="text-blue-300/90">
-                Welcome back.{" "}
-                <span className="text-neutral-400">
-                  Run a mega auction room, or spin up a <span className="text-blue-200/95">private league</span>.
-                </span>
+              <span className="text-neutral-400">
+                Welcome back. Run a mega auction room, or spin up a{" "}
+                <span className="font-semibold text-neutral-200">private league</span>.
               </span>
             }
             actions={
@@ -132,7 +130,7 @@ export default async function DashboardPage({
                   <p className="font-medium text-neutral-100 group-hover:text-white">{pl.name}</p>
                   <p className="text-xs text-neutral-500">
                     Code <span className="font-mono text-violet-300/90">{pl.invite_code}</span> ·{" "}
-                    <span className="text-neutral-600">/league/p/{pl.invite_code}</span>
+                    <span className="text-neutral-600">/join/{pl.invite_code}</span>
                   </p>
                 </div>
                 <span className="text-xs text-violet-300/80 group-hover:text-violet-200">Open →</span>
@@ -176,11 +174,8 @@ export default async function DashboardPage({
             <p className="mt-2 text-sm text-neutral-500">
               Create one for your group or paste an invite code from your host.
             </p>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Button asChild>
-                <Link href="/room/create">Create your first room</Link>
-              </Button>
-              <JoinModal />
+            <div className="mt-6">
+              <JoinInline />
             </div>
           </div>
         ) : (

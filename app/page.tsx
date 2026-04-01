@@ -28,9 +28,10 @@ export default function Home() {
   const [invite, setInvite] = useState("");
   const inviteHref = useMemo(() => {
     const code = invite.trim().toUpperCase();
-    const next = code ? `/dashboard?join=${encodeURIComponent(code)}` : "/dashboard";
+    const next = code ? `/join/${encodeURIComponent(code)}` : "/dashboard";
     return `/login?next=${encodeURIComponent(next)}`;
   }, [invite]);
+  const hasInvite = invite.trim().length > 0;
 
   return (
     <main
@@ -75,9 +76,15 @@ export default function Home() {
                 autoCapitalize="characters"
               />
             </div>
-            <Button asChild size="lg" variant="outline" className="h-12 text-base">
-              <Link href={inviteHref}>Join</Link>
-            </Button>
+            {hasInvite ? (
+              <Button asChild size="lg" variant="default" className="h-12 text-base">
+                <Link href={inviteHref}>Join</Link>
+              </Button>
+            ) : (
+              <Button asChild size="lg" variant="secondary" className="h-12 text-base">
+                <Link href="/login">Join</Link>
+              </Button>
+            )}
           </div>
           <p className="text-xs font-medium text-neutral-500">
             Open beta · Built for <span className="text-blue-200/90">IPL 2026</span>
@@ -121,8 +128,8 @@ export default function Home() {
               title: "AI practice",
               body: "Warm up against easy, medium, or hard bots before you face your friends.",
               icon: Bot,
-              accent: "border-l-amber-400/35",
-              iconClass: "text-amber-300/90",
+              accent: "border-l-blue-500/30",
+              iconClass: "text-blue-300/90",
             },
           ].map((f, i) => (
             <motion.div
@@ -130,7 +137,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.12 + i * 0.06, duration: 0.45 }}
-              className={`group rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl transition-colors duration-300 hover:border-blue-500/25 hover:bg-white/8 sm:p-6 border-l-2 ${f.accent}`}
+              className={`group flex h-full rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl transition-colors duration-300 hover:border-blue-500/25 hover:bg-white/8 sm:p-6 border-l-2 ${f.accent}`}
             >
               <div className="flex items-start gap-3">
                 <f.icon className={`mt-0.5 h-4 w-4 ${f.iconClass}`} aria-hidden />
@@ -164,10 +171,10 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.07, duration: 0.4 }}
-                className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left shadow-sm backdrop-blur-xl sm:p-5"
+                className="flex h-full flex-col rounded-2xl border border-white/10 bg-white/5 p-4 text-left shadow-sm backdrop-blur-xl sm:p-5"
               >
                 <p className="text-sm leading-relaxed text-neutral-200">&ldquo;{s.quote}&rdquo;</p>
-                <p className="mt-3 text-xs font-medium text-blue-200/80">{s.who}</p>
+                <p className="mt-auto pt-3 text-xs font-medium text-blue-200/80">{s.who}</p>
               </motion.li>
             ))}
           </ul>
