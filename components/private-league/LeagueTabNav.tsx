@@ -43,7 +43,7 @@ export function LeagueTabNav({
             key={tab}
             onClick={() => setTab(tab)}
             aria-current={isActive ? "page" : undefined}
-            className={`relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+            className={`relative flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
               isActive
                 ? "bg-violet-600/20 text-violet-100 shadow-sm shadow-violet-500/10 ring-1 ring-violet-500/25"
                 : "text-neutral-400 hover:bg-white/[0.07] hover:text-neutral-200 active:scale-[0.97]"
