@@ -103,7 +103,6 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
                 <Link href={`/league/private/${leagueId}/import`}>Import rosters</Link>
               </Button>
             ) : null}
-            {isHost ? <DeletePrivateLeagueButton leagueId={leagueId} leagueName={league.name} /> : null}
             <Button asChild variant="secondary">
               <Link href="/dashboard">Dashboard</Link>
             </Button>
@@ -270,6 +269,22 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
         </section>
       ) : null}
       <LeagueClient leagueId={league.id} isHost={isHost} teams={teams} ownersByTeamId={ownersByTeamId} leagueStatus={league.status} myTeamId={myClaimedTeamId ?? undefined} />
+      {isHost ? (
+        <section
+          className="rounded-2xl border border-red-500/15 bg-red-950/[0.12] p-5 ring-1 ring-red-500/10"
+          aria-labelledby="private-league-danger-heading"
+        >
+          <h2 id="private-league-danger-heading" className="text-xs font-semibold uppercase tracking-[0.18em] text-red-300/65">
+            Danger zone
+          </h2>
+          <p className="mt-2 max-w-xl text-sm text-neutral-500">
+            Permanently delete this league, all imported rosters, scores, and the invite link. Members will lose access. This cannot be undone.
+          </p>
+          <div className="mt-4">
+            <DeletePrivateLeagueButton leagueId={leagueId} leagueName={league.name} />
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
