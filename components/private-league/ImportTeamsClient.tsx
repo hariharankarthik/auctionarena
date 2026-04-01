@@ -19,7 +19,6 @@ export function ImportTeamsClient({ leagueId }: { leagueId: string }) {
   const [text, setText] = useState("");
   const [playerCol, setPlayerCol] = useState("");
   const [teamCol, setTeamCol] = useState("");
-  const [cvcCol, setCvcCol] = useState("");
   const [priceCol, setPriceCol] = useState("");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -50,7 +49,6 @@ export function ImportTeamsClient({ leagueId }: { leagueId: string }) {
           mapping: {
             player_name: playerCol,
             ...(teamCol.trim() ? { team: teamCol.trim() } : {}),
-            ...(cvcCol.trim() ? { cvc: cvcCol.trim() } : {}),
             ...(priceCol.trim() ? { price: priceCol.trim() } : {}),
           },
         }),
@@ -93,7 +91,6 @@ export function ImportTeamsClient({ leagueId }: { leagueId: string }) {
           mapping: {
             player_name: playerCol,
             ...(teamCol.trim() ? { team: teamCol.trim() } : {}),
-            ...(cvcCol.trim() ? { cvc: cvcCol.trim() } : {}),
             ...(priceCol.trim() ? { price: priceCol.trim() } : {}),
           },
         }),
@@ -128,17 +125,16 @@ export function ImportTeamsClient({ leagueId }: { leagueId: string }) {
             setPreview(null);
           }}
           rows={12}
-          placeholder={'e.g.\nTeam,Player,CVC\nSuper Kings,Ruturaj Gaikwad,C\nSuper Kings,Ravindra Jadeja,'}
+          placeholder={'e.g.\nTeam,Player,Price\nMumbai Indians,Rohit Sharma,10.00 Cr\nMumbai Indians,R. Sai Kishore,50 L'}
           className="w-full resize-y rounded-lg border border-white/10 bg-neutral-950/70 px-3 py-2 font-mono text-sm text-neutral-200 placeholder:text-neutral-600 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
         />
         <p className="text-xs text-neutral-500">
-          Excel: Save As CSV. Sheets: copy range (tabs work). Optional columns: team name, captain marker (C / VC).
-          Player names should be full names (e.g. &ldquo;Rohit Sharma&rdquo;) to avoid ambiguity.
+          Excel: Save As CSV. Sheets: copy range (tabs work). Player names should be full names (e.g. &ldquo;Rohit Sharma&rdquo;) to avoid ambiguity.
         </p>
       </div>
 
       {headers.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-1">
             <Label>Player name column</Label>
             <select
@@ -155,7 +151,7 @@ export function ImportTeamsClient({ leagueId }: { leagueId: string }) {
             </select>
           </div>
           <div className="space-y-1">
-            <Label>Team column (optional)</Label>
+            <Label>Team column</Label>
             <select
               value={teamCol}
               onChange={(e) => setTeamCol(e.target.value)}
@@ -170,22 +166,7 @@ export function ImportTeamsClient({ leagueId }: { leagueId: string }) {
             </select>
           </div>
           <div className="space-y-1">
-            <Label>Captain / VC column (optional)</Label>
-            <select
-              value={cvcCol}
-              onChange={(e) => setCvcCol(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-neutral-950/70 px-2 py-2 text-sm"
-            >
-              <option value="">None</option>
-              {headers.map((h) => (
-                <option key={h} value={h}>
-                  {h}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <Label>Price / amount column (optional)</Label>
+            <Label>Price / amount column</Label>
             <select
               value={priceCol}
               onChange={(e) => setPriceCol(e.target.value)}
