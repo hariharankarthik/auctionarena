@@ -15,6 +15,7 @@ import { StartLeagueButton } from "@/components/private-league/StartLeagueButton
 import { UnclaimTeamButton } from "@/components/private-league/UnclaimTeamButton";
 import { ReadOnlyLineup } from "@/components/private-league/ReadOnlyLineup";
 import { PrivateLineupPanel, type PrivateTeamPlayer } from "@/components/private-league/PrivateLineupPanel";
+import { FreeAgentsList, type FreeAgent } from "@/components/private-league/FreeAgentsList";
 
 export default async function PrivateLeaguePage({ params }: { params: Promise<{ leagueId: string }> }) {
   const { leagueId } = await params;
@@ -71,6 +72,23 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
     ? await supabase.from("players").select("id, name, role, nationality, is_overseas").in("id", playerIds)
     : { data: [] as { id: string; name: string; role: string; nationality: string | null; is_overseas: boolean }[] };
   const playersById = new Map((playerRows ?? []).map((p) => [p.id, p]));
+
+  // Free agents: players in the same sport not on any team's squad
+  const pickedIds = playerIds; // already deduplicated
+  const { data: freeAgentRows } = await supabase
+    .from("players")
+    .select("id, name, role, nationality, is_overseas, base_price")
+    .eq("sport_id", league.sport_id)
+    .not("id", "in", pickedIds.length ? `(${pickedIds.join(",")})` : "(00000000-0000-0000-0000-000000000000)")
+    .order("base_price", { ascending: false });
+  const freeAgents: FreeAgent[] = (freeAgentRows ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    role: p.role,
+    nationality: p.nationality,
+    is_overseas: p.is_overseas,
+    base_price: p.base_price ?? 0,
+  }));
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6">
@@ -279,6 +297,21 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
           </div>
         </section>
       ) : null}
+
+      {/* Free agents — players not on any team's squad */}
+      {privateTeams && privateTeams.length > 0 ? (
+        <details className="group rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl open:border-violet-500/25">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+              Free Agents{" "}
+              <span className="text-neutral-600">({freeAgents.length})</span>
+            </h2>
+            <span className="text-xs text-neutral-500 group-open:text-neutral-300">Toggle</span>
+          </summary>
+          <FreeAgentsList players={freeAgents} />
+        </details>
+      ) : null}
+
       <LeagueClient leagueId={league.id} isHost={isHost} teams={teams} ownersByTeamId={ownersByTeamId} leagueStatus={league.status} myTeamId={myClaimedTeamId ?? undefined} />
       {isHost ? (
         <details className="group rounded-2xl border border-red-500/15 bg-red-950/[0.12] p-5 ring-1 ring-red-500/10">
