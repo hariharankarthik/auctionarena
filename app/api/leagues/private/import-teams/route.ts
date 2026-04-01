@@ -24,8 +24,11 @@ export async function POST(req: NextRequest) {
   const league_id = body.league_id?.trim();
   const sheet_text = body.sheet_text?.trim();
   const mapping = body.mapping;
-  if (!league_id || !sheet_text || !mapping?.player_name?.trim()) {
-    return NextResponse.json({ error: "league_id, sheet_text, and mapping.player_name required" }, { status: 400 });
+  if (!league_id || !sheet_text || !mapping?.player_name?.trim() || !mapping?.team?.trim() || !mapping?.price?.trim()) {
+    return NextResponse.json(
+      { error: "league_id, sheet_text, mapping.team, mapping.player_name, and mapping.price required" },
+      { status: 400 },
+    );
   }
 
   const { data: league, error: lErr } = await supabase

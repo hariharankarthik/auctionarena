@@ -33,8 +33,16 @@ export function ImportTeamsClient({ leagueId }: { leagueId: string }) {
   }, [text]);
 
   async function runPreview() {
+    if (!teamCol) {
+      toast.error("Pick the team column");
+      return;
+    }
     if (!playerCol) {
       toast.error("Pick the player name column");
+      return;
+    }
+    if (!priceCol) {
+      toast.error("Pick the price column");
       return;
     }
     setBusy(true);
@@ -76,8 +84,16 @@ export function ImportTeamsClient({ leagueId }: { leagueId: string }) {
   }
 
   async function runImport() {
+    if (!teamCol) {
+      toast.error("Pick the team column");
+      return;
+    }
     if (!playerCol) {
       toast.error("Pick the player name column");
+      return;
+    }
+    if (!priceCol) {
+      toast.error("Pick the price column");
       return;
     }
     setBusy(true);
@@ -136,7 +152,22 @@ export function ImportTeamsClient({ leagueId }: { leagueId: string }) {
       {headers.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-1">
-            <Label>Player name column</Label>
+            <Label>Team column</Label>
+            <select
+              value={teamCol}
+              onChange={(e) => setTeamCol(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-neutral-950/70 px-2 py-2 text-sm"
+            >
+              <option value="">Select…</option>
+              {headers.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label>Player column</Label>
             <select
               value={playerCol}
               onChange={(e) => setPlayerCol(e.target.value)}
@@ -151,28 +182,13 @@ export function ImportTeamsClient({ leagueId }: { leagueId: string }) {
             </select>
           </div>
           <div className="space-y-1">
-            <Label>Team column</Label>
-            <select
-              value={teamCol}
-              onChange={(e) => setTeamCol(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-neutral-950/70 px-2 py-2 text-sm"
-            >
-              <option value="">Single team / omit</option>
-              {headers.map((h) => (
-                <option key={h} value={h}>
-                  {h}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <Label>Price / amount column</Label>
+            <Label>Price column</Label>
             <select
               value={priceCol}
               onChange={(e) => setPriceCol(e.target.value)}
               className="w-full rounded-lg border border-white/10 bg-neutral-950/70 px-2 py-2 text-sm"
             >
-              <option value="">None</option>
+              <option value="">Select…</option>
               {headers.map((h) => (
                 <option key={h} value={h}>
                   {h}
@@ -184,12 +200,17 @@ export function ImportTeamsClient({ leagueId }: { leagueId: string }) {
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="secondary" disabled={busy || !text.trim() || !playerCol} onClick={() => void runPreview()}>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={busy || !text.trim() || !teamCol || !playerCol || !priceCol}
+          onClick={() => void runPreview()}
+        >
           Preview match
         </Button>
         <Button
           type="button"
-          disabled={busy || !text.trim() || !playerCol}
+          disabled={busy || !text.trim() || !teamCol || !playerCol || !priceCol}
           onClick={() => void runImport()}
           className="bg-gradient-to-r from-blue-600 to-blue-500 text-white"
         >
