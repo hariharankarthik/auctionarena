@@ -195,10 +195,10 @@ export function FreeAgentsList({
                           <button
                             onClick={() => setPickupTarget(p)}
                             disabled={pendingPlayerIds?.has(p.id)}
-                            title="Drop one of your players and pick up this one"
+                            title="Trade one of your players for this one"
                             className="shrink-0 cursor-pointer rounded-lg bg-green-600/20 px-2.5 py-1 text-[11px] font-semibold text-green-300 ring-1 ring-green-500/25 transition hover:bg-green-600/30 disabled:cursor-not-allowed disabled:opacity-40"
                           >
-                            Pick Up
+                            Trade
                           </button>
                         </>
                       ) : null}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { PlayerMeta } from "@/components/player/PlayerMeta";
 
@@ -36,9 +36,15 @@ export function FreeAgentPickupModal({
   onClose,
 }: Props) {
   const router = useRouter();
+  const panelRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Scroll the modal into view when it opens
+  useEffect(() => {
+    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
 
   const handlePickup = async () => {
     if (!selectedId) return;
@@ -57,7 +63,7 @@ export function FreeAgentPickupModal({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Failed to pick up player");
+        setError(data.error ?? "Failed to complete trade");
         setSubmitting(false);
         return;
       }
@@ -72,12 +78,13 @@ export function FreeAgentPickupModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
+        ref={panelRef}
         className="mx-4 w-full max-w-md rounded-2xl border border-white/10 bg-neutral-900 p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-semibold text-white">Pick Up Free Agent</h3>
+        <h3 className="text-lg font-semibold text-white">Trade for Free Agent</h3>
         <p className="mt-1 text-sm text-neutral-400">
-          Pick up <span className="font-medium text-green-300">{targetPlayer.name}</span>
+          You want <span className="font-medium text-green-300">{targetPlayer.name}</span>
           <span className="ml-1 text-neutral-500">
             <PlayerMeta variant="inline" role={targetPlayer.role} nationality={targetPlayer.nationality} isOverseas={targetPlayer.is_overseas} />
           </span>
@@ -85,7 +92,7 @@ export function FreeAgentPickupModal({
 
         <div className="mt-4">
           <p className="mb-2 text-xs font-medium uppercase tracking-wider text-neutral-500">
-            Select your player to drop
+            Select a player from your squad to trade away
           </p>
           <div className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-white/10 bg-neutral-950/50 p-2">
             {mySquad.map((p) => {
@@ -127,7 +134,7 @@ export function FreeAgentPickupModal({
             disabled={!selectedId || submitting}
             className="flex-1 cursor-pointer rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {submitting ? "Picking up…" : "Confirm Pickup"}
+            {submitting ? "Trading…" : "Confirm Trade"}
           </button>
         </div>
       </div>
