@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { PlayerMeta } from "@/components/player/PlayerMeta";
+import { FreeAgentPickupModal } from "./FreeAgentPickupModal";
 
 export interface FreeAgent {
   id: string;
@@ -13,13 +14,36 @@ export interface FreeAgent {
   ipl_team: string | null;
 }
 
+interface SquadPlayer {
+  id: string;
+  name: string;
+  role: string;
+  nationality: string | null;
+  is_overseas: boolean;
+}
+
 const ROLE_ORDER: Record<string, number> = { WK: 0, BAT: 1, ALL: 2, BOWL: 3 };
 const ROLE_FILTERS = ["All", "WK", "BAT", "ALL", "BOWL"] as const;
 
-export function FreeAgentsList({ players }: { players: FreeAgent[] }) {
+export function FreeAgentsList({
+  players,
+  leagueId,
+  leagueStatus,
+  mySquad,
+  pendingPlayerIds,
+}: {
+  players: FreeAgent[];
+  leagueId?: string;
+  leagueStatus?: string;
+  mySquad?: SquadPlayer[];
+  pendingPlayerIds?: Set<string>;
+}) {
   const [roleFilter, setRoleFilter] = useState<string>("All");
   const [teamFilter, setTeamFilter] = useState<string>("All");
   const [search, setSearch] = useState("");
+  const [pickupTarget, setPickupTarget] = useState<FreeAgent | null>(null);
+
+  const canPickUp = leagueStatus === "active" && mySquad && mySquad.length > 0 && leagueId;
 
   const iplTeams = useMemo(() => {
     const teams = [...new Set(players.map((p) => p.ipl_team).filter(Boolean))] as string[];
@@ -128,9 +152,20 @@ export function FreeAgentsList({ players }: { players: FreeAgent[] }) {
                       <PlayerMeta variant="inline" role={p.role} nationality={p.nationality} isOverseas={p.is_overseas} className="shrink-0" />
                       <span className="truncate text-neutral-100">{p.name}</span>
                     </div>
-                    {p.base_price > 0 ? (
-                      <span className="shrink-0 text-xs text-neutral-500">₹{p.base_price}L</span>
-                    ) : null}
+                    <div className="flex items-center gap-2">
+                      {p.base_price > 0 ? (
+                        <span className="shrink-0 text-xs text-neutral-500">₹{p.base_price}L</span>
+                      ) : null}
+                      {canPickUp ? (
+                        <button
+                          onClick={() => setPickupTarget(p)}
+                          disabled={pendingPlayerIds?.has(p.id)}
+                          className="shrink-0 cursor-pointer rounded-lg bg-green-600/20 px-2.5 py-1 text-[11px] font-semibold text-green-300 ring-1 ring-green-500/25 transition hover:bg-green-600/30 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Pick Up
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -138,6 +173,16 @@ export function FreeAgentsList({ players }: { players: FreeAgent[] }) {
           ))}
         </div>
       )}
+
+      {pickupTarget && canPickUp ? (
+        <FreeAgentPickupModal
+          leagueId={leagueId!}
+          targetPlayer={pickupTarget}
+          mySquad={mySquad!}
+          pendingPlayerIds={pendingPlayerIds ?? new Set()}
+          onClose={() => setPickupTarget(null)}
+        />
+      ) : null}
     </div>
   );
 }
