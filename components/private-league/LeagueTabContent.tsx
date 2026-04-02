@@ -39,13 +39,13 @@ export function LeagueTabContent({
       // Phase 1: fade out old content
       setPhase("fading-out");
       const fadeOut = setTimeout(() => {
-        // Phase 2: show skeleton
+        // Phase 2: show skeleton while content prepares
         setPhase("loading");
         const load = setTimeout(() => {
           // Phase 3: swap content and fade in
           setDisplayedTab(activeTab);
           setPhase("visible");
-        }, 100);
+        }, 350);
         return () => clearTimeout(load);
       }, 120);
       return () => clearTimeout(fadeOut);
