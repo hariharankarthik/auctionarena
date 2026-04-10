@@ -22,6 +22,7 @@ interface Props {
   mySquad: SquadPlayer[];
   pendingPlayerIds: Set<string>;
   canTrade: boolean;
+  pointsByPlayerId?: Record<string, number>;
 }
 
 export function RosterWithTrade({
@@ -34,6 +35,7 @@ export function RosterWithTrade({
   mySquad,
   pendingPlayerIds,
   canTrade,
+  pointsByPlayerId,
 }: Props) {
   const [tradeTarget, setTradeTarget] = useState<SquadPlayer | null>(null);
 
@@ -60,15 +62,20 @@ export function RosterWithTrade({
                     {isC ? <span className="text-blue-200">(C)</span> : isVC ? <span className="text-sky-200">(VC)</span> : null}
                   </p>
                 </div>
-                {canTrade ? (
-                  <button
-                    onClick={() => setTradeTarget(p)}
-                    disabled={isPending}
-                    className="shrink-0 cursor-pointer rounded-lg bg-violet-600/20 px-2.5 py-1 text-[11px] font-semibold text-violet-300 ring-1 ring-violet-500/25 transition hover:bg-violet-600/30 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {isPending ? "In Trade" : "Propose Trade"}
-                  </button>
-                ) : null}
+                <div className="flex items-center gap-2">
+                  {(pointsByPlayerId?.[p.id] ?? 0) > 0 ? (
+                    <span className="shrink-0 font-mono text-xs text-neutral-400">{Math.round(pointsByPlayerId![p.id]!)} pts</span>
+                  ) : null}
+                  {canTrade ? (
+                    <button
+                      onClick={() => setTradeTarget(p)}
+                      disabled={isPending}
+                      className="shrink-0 cursor-pointer rounded-lg bg-violet-600/20 px-2.5 py-1 text-[11px] font-semibold text-violet-300 ring-1 ring-violet-500/25 transition hover:bg-violet-600/30 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {isPending ? "In Trade" : "Propose Trade"}
+                    </button>
+                  ) : null}
+                </div>
               </div>
             );
           })}

@@ -275,6 +275,14 @@ export async function POST(req: NextRequest) {
     const lineupByTeam = new Map<string, TeamLineupRow>();
     for (const t of teamList) lineupByTeam.set(t.id, t);
 
+    // Build player name lookup for enriched player_lines
+    const perfPlayerIds = [...new Set(performances.map((p) => p.player_id).filter(Boolean))];
+    const playerNameById = new Map<string, string>();
+    if (perfPlayerIds.length > 0) {
+      const { data: nameRows } = await supabase.from("players").select("id, name").in("id", perfPlayerIds);
+      for (const r of nameRows ?? []) playerNameById.set(r.id, r.name);
+    }
+
     const pickTopBySpent = (teamId: string, playerIds: string[], k: number): string[] => {
       const spent = spentByTeamId.get(teamId) ?? {};
       return playerIds
@@ -309,7 +317,7 @@ export async function POST(req: NextRequest) {
       };
       if (!stats.batting && !stats.bowling && !stats.fielding) continue;
 
-      const { total: baseTotal } = scorePlayerMatch(stats);
+      const { total: baseTotal, breakdown: pointsBreakdown, sections } = scorePlayerMatch(stats);
       const teamRow = lineupByTeam.get(teamId);
       const rawXi = teamRow?.starting_xi_player_ids ?? [];
       const isAutoXi = isPrivate && rawXi.length === 0 && (autoXiByTeamId.get(teamId)?.length ?? 0) > 0;
@@ -332,9 +340,17 @@ export async function POST(req: NextRequest) {
       bucket.total += effective;
       bucket.detail.push({
         player_id: row.player_id,
+        player_name: playerNameById.get(row.player_id) ?? null,
         base_points: baseTotal,
         multiplier,
         effective_points: effective,
+        stats: {
+          ...(row.batting ? { batting: row.batting } : {}),
+          ...(row.bowling ? { bowling: row.bowling } : {}),
+          ...(row.fielding ? { fielding: row.fielding } : {}),
+        },
+        sections,
+        breakdown: pointsBreakdown,
         ...(isAutoXi ? { auto_xi: true } : {}),
       });
       applied++;

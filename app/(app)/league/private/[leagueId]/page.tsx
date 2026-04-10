@@ -123,6 +123,24 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
   const tradesTeamsById: Record<string, { id: string; team_name: string; team_color: string }> =
     Object.fromEntries((privateTeams ?? []).map((t) => [t.id, { id: t.id, team_name: t.team_name, team_color: t.team_color ?? "#3B82F6" }]));
 
+  // Aggregate total fantasy points per player from all match scores
+  const pointsByPlayerId: Record<string, number> = {};
+  {
+    const { data: scoreRows } = await supabase
+      .from("fantasy_scores")
+      .select("breakdown")
+      .eq("league_id", leagueId);
+    for (const row of scoreRows ?? []) {
+      const bd = row.breakdown as Record<string, unknown> | null;
+      const lines = bd?.player_lines;
+      if (!Array.isArray(lines)) continue;
+      for (const pl of lines as { player_id?: string; effective_points?: number }[]) {
+        if (!pl.player_id) continue;
+        pointsByPlayerId[pl.player_id] = (pointsByPlayerId[pl.player_id] ?? 0) + (pl.effective_points ?? 0);
+      }
+    }
+  }
+
   // Pending trade player IDs (for disabling buttons)
   const pendingTrades = trades.filter((t) => t.status === "pending");
   const pendingPlayerIds = new Set(pendingTrades.flatMap((t) => [t.offered_player_id, t.requested_player_id]));
@@ -212,6 +230,7 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
                     leagueStatus={league.status}
                     mySquad={mySquadPlayers}
                     pendingPlayerIds={pendingPlayerIds}
+                    pointsByPlayerId={pointsByPlayerId}
                   />
                 </section>
               ),
@@ -298,6 +317,7 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
                               mySquad={mySquadPlayers}
                               pendingPlayerIds={pendingPlayerIds}
                               canTrade={true}
+                              pointsByPlayerId={pointsByPlayerId}
                             />
                           ) : (
                             <div className="mt-4 grid gap-2">
@@ -319,6 +339,9 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
                                           {isC ? <span className="text-blue-200">(C)</span> : isVC ? <span className="text-sky-200">(VC)</span> : null}
                                         </p>
                                       </div>
+                                      {(pointsByPlayerId[p.id] ?? 0) > 0 ? (
+                                        <span className="shrink-0 font-mono text-xs text-neutral-400">{Math.round(pointsByPlayerId[p.id]!)} pts</span>
+                                      ) : null}
                                     </div>
                                   );
                                 })}

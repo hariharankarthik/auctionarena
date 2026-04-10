@@ -33,12 +33,14 @@ export function FreeAgentsList({
   leagueStatus,
   mySquad,
   pendingPlayerIds,
+  pointsByPlayerId,
 }: {
   players: FreeAgent[];
   leagueId?: string;
   leagueStatus?: string;
   mySquad?: SquadPlayer[];
   pendingPlayerIds?: Set<string>;
+  pointsByPlayerId?: Record<string, number>;
 }) {
   const router = useRouter();
   const [roleFilter, setRoleFilter] = useState<string>("All");
@@ -179,6 +181,9 @@ export function FreeAgentsList({
                       <span className="truncate text-neutral-100">{p.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
+                      {(pointsByPlayerId?.[p.id] ?? 0) > 0 ? (
+                        <span className="shrink-0 font-mono text-xs text-emerald-400">{Math.round(pointsByPlayerId![p.id]!)} pts</span>
+                      ) : null}
                       {p.base_price > 0 ? (
                         <span className="shrink-0 text-xs text-neutral-500">₹{p.base_price}L</span>
                       ) : null}

@@ -14,6 +14,13 @@ type PlayerLine = {
   multiplier?: number;
   effective_pts?: number;
   effective_points?: number;
+  stats?: {
+    batting?: { runs?: number; ballsFaced?: number; fours?: number; sixes?: number; dismissed?: boolean };
+    bowling?: { ballsBowled?: number; runsConceded?: number; wicketsExcludingRunOut?: number; maidens?: number; dotBalls?: number };
+    fielding?: { catches?: number; stumpings?: number; runOutsDirect?: number; runOutsThrower?: number };
+  };
+  sections?: { batting?: Record<string, number>; bowling?: Record<string, number>; fielding?: Record<string, number> };
+  breakdown?: Record<string, number>;
 };
 
 export function MatchBreakdown({ scores, teams, matchNames }: { scores: ScoreRow[]; teams: LeagueTeamDisplay[]; matchNames?: Record<string, string> }) {
@@ -81,19 +88,78 @@ function MatchScoreRow({ row, teamName }: { row: ScoreRow; teamName: string }) {
         <span className="font-mono text-neutral-200">{Number(row.total_points).toFixed(1)}</span>
       </div>
       {open && playerLines ? (
-        <div className="ml-4 mt-1 space-y-0.5 border-l border-neutral-800 pl-3">
+        <div className="ml-4 mt-1 space-y-1 border-l border-neutral-800 pl-3">
           {playerLines.map((pl, i) => (
-            <div key={i} className="flex justify-between gap-3 text-xs text-neutral-400">
-              <span className="min-w-0 truncate">{pl.player_name ?? pl.player_id ?? "Unknown"}</span>
-              <span className="flex shrink-0 gap-2 font-mono">
-                <span>{(pl.base_pts ?? pl.base_points ?? 0).toFixed(1)}</span>
-                <span className="text-neutral-500">×{pl.multiplier ?? 1}</span>
-                <span className="text-neutral-200">{(pl.effective_pts ?? pl.effective_points ?? 0).toFixed(1)}</span>
-              </span>
-            </div>
+            <PlayerLineRow key={i} pl={pl} />
           ))}
         </div>
       ) : null}
     </li>
+  );
+}
+
+function PlayerLineRow({ pl }: { pl: PlayerLine }) {
+  const basePts = pl.base_pts ?? pl.base_points ?? 0;
+  const effectivePts = pl.effective_pts ?? pl.effective_points ?? 0;
+  const hasBreakdown = pl.breakdown && Object.keys(pl.breakdown).length > 0;
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div>
+      <div className="flex justify-between gap-3 text-xs text-neutral-400">
+        <button
+          type="button"
+          className={`min-w-0 truncate text-left ${hasBreakdown && basePts > 0 ? "cursor-pointer hover:text-neutral-200" : "cursor-default"}`}
+          onClick={() => hasBreakdown && basePts > 0 && setExpanded((v) => !v)}
+        >
+          {pl.player_name ?? pl.player_id ?? "Unknown"}
+          {hasBreakdown && basePts > 0 ? <span className="ml-1 text-neutral-600">{expanded ? "▾" : "▸"}</span> : null}
+        </button>
+        <span className="flex shrink-0 gap-2 font-mono">
+          <span>{basePts.toFixed(1)}</span>
+          <span className="text-neutral-500">×{pl.multiplier ?? 1}</span>
+          <span className="text-neutral-200">{effectivePts.toFixed(1)}</span>
+        </span>
+      </div>
+      {expanded && pl.stats ? (
+        <div className="ml-3 mt-0.5 space-y-0.5 text-[11px] text-neutral-500">
+          {pl.stats.batting && (pl.sections?.batting || pl.stats.batting.runs !== undefined) ? (
+            <p>
+              <span className="text-blue-400/70">BAT</span>{" "}
+              {pl.stats.batting.runs ?? 0}({pl.stats.batting.ballsFaced ?? 0}){" "}
+              {(pl.stats.batting.fours ?? 0) > 0 ? <span>{pl.stats.batting.fours}×4 </span> : null}
+              {(pl.stats.batting.sixes ?? 0) > 0 ? <span>{pl.stats.batting.sixes}×6 </span> : null}
+              {pl.sections?.batting ? (
+                <span className="text-neutral-400">→ {Object.values(pl.sections.batting).reduce((a, b) => a + b, 0).toFixed(0)}pts</span>
+              ) : null}
+            </p>
+          ) : null}
+          {pl.stats.bowling && (pl.sections?.bowling || pl.stats.bowling.wicketsExcludingRunOut !== undefined) ? (() => {
+            const b = pl.stats.bowling;
+            const overs = Math.floor((b.ballsBowled ?? 0) / 6);
+            const balls = (b.ballsBowled ?? 0) % 6;
+            return (
+              <p>
+                <span className="text-green-400/70">BOWL</span>{" "}
+                {overs}.{balls}-{b.runsConceded ?? 0}-{b.wicketsExcludingRunOut ?? 0}{" "}
+                {(b.maidens ?? 0) > 0 ? <span>{b.maidens}M </span> : null}
+                {pl.sections?.bowling ? (
+                  <span className="text-neutral-400">→ {Object.values(pl.sections.bowling).reduce((a, b) => a + b, 0).toFixed(0)}pts</span>
+                ) : null}
+              </p>
+            );
+          })() : null}
+          {pl.stats.fielding && pl.sections?.fielding && Object.values(pl.sections.fielding).some((v) => v > 0) ? (
+            <p>
+              <span className="text-amber-400/70">FIELD</span>{" "}
+              {(pl.stats.fielding.catches ?? 0) > 0 ? <span>{pl.stats.fielding.catches}ct </span> : null}
+              {(pl.stats.fielding.stumpings ?? 0) > 0 ? <span>{pl.stats.fielding.stumpings}st </span> : null}
+              {(pl.stats.fielding.runOutsDirect ?? 0) > 0 ? <span>{pl.stats.fielding.runOutsDirect}ro </span> : null}
+              <span className="text-neutral-400">→ {Object.values(pl.sections.fielding).reduce((a, b) => a + b, 0).toFixed(0)}pts</span>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
