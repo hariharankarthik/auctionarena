@@ -135,7 +135,7 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
       const lines = bd?.player_lines;
       if (!Array.isArray(lines)) continue;
       for (const pl of lines as { player_id?: string; effective_points?: number }[]) {
-        if (!pl.player_id) continue;
+        if (!pl || !pl.player_id) continue;
         pointsByPlayerId[pl.player_id] = (pointsByPlayerId[pl.player_id] ?? 0) + (pl.effective_points ?? 0);
       }
     }
@@ -340,7 +340,7 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
                                         </p>
                                       </div>
                                       {(pointsByPlayerId[p.id] ?? 0) > 0 ? (
-                                        <span className="shrink-0 font-mono text-xs text-neutral-400">{Math.round(pointsByPlayerId[p.id]!)} pts</span>
+                                        <span className="shrink-0 font-mono text-xs text-neutral-400">{Math.round(pointsByPlayerId[p.id] ?? 0)} pts</span>
                                       ) : null}
                                     </div>
                                   );

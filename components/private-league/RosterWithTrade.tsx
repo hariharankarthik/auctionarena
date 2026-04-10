@@ -64,7 +64,7 @@ export function RosterWithTrade({
                 </div>
                 <div className="flex items-center gap-2">
                   {(pointsByPlayerId?.[p.id] ?? 0) > 0 ? (
-                    <span className="shrink-0 font-mono text-xs text-neutral-400">{Math.round(pointsByPlayerId![p.id]!)} pts</span>
+                    <span className="shrink-0 font-mono text-xs text-neutral-400">{Math.round(pointsByPlayerId?.[p.id] ?? 0)} pts</span>
                   ) : null}
                   {canTrade ? (
                     <button

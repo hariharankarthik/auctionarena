@@ -182,7 +182,7 @@ export function FreeAgentsList({
                     </div>
                     <div className="flex items-center gap-2">
                       {(pointsByPlayerId?.[p.id] ?? 0) > 0 ? (
-                        <span className="shrink-0 font-mono text-xs text-emerald-400">{Math.round(pointsByPlayerId![p.id]!)} pts</span>
+                        <span className="shrink-0 font-mono text-xs text-emerald-400">{Math.round(pointsByPlayerId?.[p.id] ?? 0)} pts</span>
                       ) : null}
                       {p.base_price > 0 ? (
                         <span className="shrink-0 text-xs text-neutral-500">₹{p.base_price}L</span>
