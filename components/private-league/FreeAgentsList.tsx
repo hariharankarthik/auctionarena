@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { PlayerMeta } from "@/components/player/PlayerMeta";
-import { FreeAgentPickupModal } from "./FreeAgentPickupModal";
+import { isFreeAgentWindowUsed } from "@/lib/free-agent-window";
 
 export interface FreeAgent {
   id: string;
@@ -23,6 +23,8 @@ interface SquadPlayer {
   is_overseas: boolean;
 }
 
+type StagedSwap = { drop: SquadPlayer | null; add: FreeAgent | null };
+
 const ROLE_ORDER: Record<string, number> = { WK: 0, BAT: 1, ALL: 2, BOWL: 3 };
 const ROLE_FILTERS = ["All", "WK", "BAT", "ALL", "BOWL"] as const;
 const MAX_SQUAD_SIZE = 15;
@@ -34,6 +36,8 @@ export function FreeAgentsList({
   mySquad,
   pendingPlayerIds,
   pointsByPlayerId,
+  faWindowUsedAt,
+  hasTeam,
 }: {
   players: FreeAgent[];
   leagueId?: string;
@@ -41,46 +45,107 @@ export function FreeAgentsList({
   mySquad?: SquadPlayer[];
   pendingPlayerIds?: Set<string>;
   pointsByPlayerId?: Record<string, number>;
+  faWindowUsedAt?: string | null;
+  hasTeam?: boolean;
 }) {
   const router = useRouter();
   const [roleFilter, setRoleFilter] = useState<string>("All");
   const [teamFilter, setTeamFilter] = useState<string>("All");
   const [search, setSearch] = useState("");
-  const [pickupTarget, setPickupTarget] = useState<FreeAgent | null>(null);
-  const [addingPlayerId, setAddingPlayerId] = useState<string | null>(null);
+
+  // Window state
+  const [windowOpen, setWindowOpen] = useState(false);
+  const [staged, setStaged] = useState<StagedSwap[]>([]);
+  const [committing, setCommitting] = useState(false);
+  const [commitError, setCommitError] = useState<string | null>(null);
+  // For the swap modal: which free agent the user wants to pick up
+  const [swapTarget, setSwapTarget] = useState<FreeAgent | null>(null);
 
   const isActive = leagueStatus === "active" && leagueId;
-  const hasTeam = mySquad && mySquad.length > 0;
-  const canPickUp = isActive && hasTeam;
-  const squadSize = mySquad?.length ?? 0;
-  const squadFull = squadSize >= MAX_SQUAD_SIZE;
-  const canAddToSquad = isActive && hasTeam && !squadFull;
+  const windowUsed = isFreeAgentWindowUsed(faWindowUsedAt ?? null);
+  const canOpenWindow = isActive && hasTeam && !windowUsed;
 
-  const handleAddToSquad = async (playerId: string) => {
-    if (!leagueId) return;
-    setAddingPlayerId(playerId);
+  // Effective squad after staged changes
+  const effectiveSquad = useMemo(() => {
+    if (!mySquad) return [];
+    let squad = [...mySquad];
+    for (const s of staged) {
+      if (s.drop) squad = squad.filter((p) => p.id !== s.drop!.id);
+      if (s.add) squad.push({ id: s.add.id, name: s.add.name, role: s.add.role, nationality: s.add.nationality, is_overseas: s.add.is_overseas });
+    }
+    return squad;
+  }, [mySquad, staged]);
+
+  // IDs staged for add/drop (to disable buttons)
+  const stagedAddIds = useMemo(() => new Set(staged.map((s) => s.add?.id).filter(Boolean) as string[]), [staged]);
+  const stagedDropIds = useMemo(() => new Set(staged.map((s) => s.drop?.id).filter(Boolean) as string[]), [staged]);
+
+  // Effective free agents: original list minus staged adds, plus staged drops (simplified — just hide staged adds)
+  const effectiveFreeAgents = useMemo(() => {
+    return players.filter((p) => !stagedAddIds.has(p.id));
+  }, [players, stagedAddIds]);
+
+  const squadFull = effectiveSquad.length >= MAX_SQUAD_SIZE;
+
+  const handleStageAdd = useCallback((fa: FreeAgent) => {
+    if (effectiveSquad.length >= MAX_SQUAD_SIZE) return;
+    setStaged((prev) => [...prev, { drop: null, add: fa }]);
+  }, [effectiveSquad.length]);
+
+  const handleStageSwap = useCallback((fa: FreeAgent, dropPlayer: SquadPlayer) => {
+    setStaged((prev) => [...prev, { drop: dropPlayer, add: fa }]);
+    setSwapTarget(null);
+  }, []);
+
+  const handleUnstage = useCallback((index: number) => {
+    setStaged((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleDiscard = useCallback(() => {
+    setStaged([]);
+    setWindowOpen(false);
+    setCommitError(null);
+    setSwapTarget(null);
+  }, []);
+
+  const handleCommit = async () => {
+    if (!leagueId || staged.length === 0) return;
+    setCommitting(true);
+    setCommitError(null);
     try {
-      const res = await fetch("/api/leagues/private/trade/add-to-squad", {
+      const changes = staged.map((s) => ({
+        drop: s.drop?.id ?? null,
+        add: s.add?.id ?? null,
+      }));
+      const res = await fetch("/api/leagues/private/free-agent-window/commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ league_id: leagueId, player_id: playerId }),
+        body: JSON.stringify({ league_id: leagueId, changes }),
       });
-      if (res.ok) {
-        router.refresh();
+      const data = await res.json();
+      if (!res.ok) {
+        setCommitError(data.error ?? "Failed to commit changes");
+        setCommitting(false);
+        return;
       }
+      setStaged([]);
+      setWindowOpen(false);
+      router.refresh();
+    } catch {
+      setCommitError("Network error");
     } finally {
-      setAddingPlayerId(null);
+      setCommitting(false);
     }
   };
 
   const iplTeams = useMemo(() => {
-    const teams = [...new Set(players.map((p) => p.ipl_team).filter(Boolean))] as string[];
+    const teams = [...new Set(effectiveFreeAgents.map((p) => p.ipl_team).filter(Boolean))] as string[];
     return teams.sort();
-  }, [players]);
+  }, [effectiveFreeAgents]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return players
+    return effectiveFreeAgents
       .filter(
         (p) =>
           (roleFilter === "All" || p.role === roleFilter) &&
@@ -93,9 +158,8 @@ export function FreeAgentsList({
         if (teamA !== teamB) return teamA.localeCompare(teamB);
         return (ROLE_ORDER[a.role] ?? 9) - (ROLE_ORDER[b.role] ?? 9) || b.base_price - a.base_price;
       });
-  }, [players, roleFilter, teamFilter, search]);
+  }, [effectiveFreeAgents, roleFilter, teamFilter, search]);
 
-  // Group filtered players by IPL team for display
   const grouped = useMemo(() => {
     const map = new Map<string, FreeAgent[]>();
     for (const p of filtered) {
@@ -112,6 +176,96 @@ export function FreeAgentsList({
 
   return (
     <div className="space-y-3">
+      {/* Free Agent Window Controls */}
+      {isActive && hasTeam ? (
+        <div className="rounded-xl border border-white/10 bg-neutral-950/50 p-4">
+          {!windowOpen ? (
+            windowUsed ? (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-neutral-400">
+                  ✓ Free agent window used this week. Resets Saturday at midnight PT.
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-neutral-200">Free Agent Window</p>
+                  <p className="mt-0.5 text-xs text-neutral-500">
+                    Open your weekly window to add or swap free agents. Changes are saved only when you confirm.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setWindowOpen(true)}
+                  className="shrink-0 cursor-pointer rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500"
+                >
+                  Open Window
+                </button>
+              </div>
+            )
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-green-300">🟢 Free Agent Window Open</p>
+                <span className="text-xs text-neutral-500">{staged.length} change{staged.length !== 1 ? "s" : ""} staged</span>
+              </div>
+
+              {/* Staged changes list */}
+              {staged.length > 0 ? (
+                <div className="space-y-1 rounded-lg border border-white/10 bg-neutral-950/60 p-2">
+                  {staged.map((s, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="text-neutral-300">
+                        {s.drop && s.add ? (
+                          <>
+                            <span className="text-red-400">↓ {s.drop.name}</span>
+                            {" → "}
+                            <span className="text-green-400">↑ {s.add.name}</span>
+                          </>
+                        ) : s.add ? (
+                          <span className="text-green-400">+ {s.add.name}</span>
+                        ) : s.drop ? (
+                          <span className="text-red-400">- {s.drop.name}</span>
+                        ) : null}
+                      </span>
+                      <button
+                        onClick={() => handleUnstage(i)}
+                        className="cursor-pointer text-neutral-500 transition hover:text-red-400"
+                        title="Remove this change"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {commitError ? <p className="text-sm text-red-400">{commitError}</p> : null}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={handleDiscard}
+                  disabled={committing}
+                  className="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-neutral-300 transition hover:bg-white/10 disabled:opacity-50"
+                >
+                  Discard
+                </button>
+                <button
+                  onClick={handleCommit}
+                  disabled={committing || staged.length === 0}
+                  className="cursor-pointer rounded-lg bg-green-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {committing ? "Saving…" : "Confirm Changes"}
+                </button>
+              </div>
+
+              <p className="text-[11px] text-amber-400/80">
+                ⚠ Changes are not saved until you click Confirm. If you leave this page, all staged changes will be lost.
+              </p>
+            </div>
+          )}
+        </div>
+      ) : null}
+
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <input
@@ -187,23 +341,23 @@ export function FreeAgentsList({
                       {p.base_price > 0 ? (
                         <span className="shrink-0 text-xs text-neutral-500">₹{p.base_price}L</span>
                       ) : null}
-                      {isActive && hasTeam ? (
+                      {windowOpen && !stagedAddIds.has(p.id) ? (
                         <>
+                          {!squadFull ? (
+                            <button
+                              onClick={() => handleStageAdd(p)}
+                              title="Add to your squad"
+                              className="shrink-0 cursor-pointer rounded-lg bg-blue-600/20 px-2.5 py-1 text-[11px] font-semibold text-blue-300 ring-1 ring-blue-500/25 transition hover:bg-blue-600/30"
+                            >
+                              Add
+                            </button>
+                          ) : null}
                           <button
-                            onClick={() => handleAddToSquad(p.id)}
-                            disabled={squadFull || addingPlayerId === p.id || pendingPlayerIds?.has(p.id)}
-                            title={squadFull ? `Squad full (${MAX_SQUAD_SIZE}/${MAX_SQUAD_SIZE})` : "Add to your squad"}
-                            className="shrink-0 cursor-pointer rounded-lg bg-blue-600/20 px-2.5 py-1 text-[11px] font-semibold text-blue-300 ring-1 ring-blue-500/25 transition hover:bg-blue-600/30 disabled:cursor-not-allowed disabled:opacity-40"
+                            onClick={() => setSwapTarget(p)}
+                            title="Swap one of your players for this one"
+                            className="shrink-0 cursor-pointer rounded-lg bg-green-600/20 px-2.5 py-1 text-[11px] font-semibold text-green-300 ring-1 ring-green-500/25 transition hover:bg-green-600/30"
                           >
-                            {addingPlayerId === p.id ? "Adding…" : "Add"}
-                          </button>
-                          <button
-                            onClick={() => setPickupTarget(p)}
-                            disabled={pendingPlayerIds?.has(p.id)}
-                            title="Trade one of your players for this one"
-                            className="shrink-0 cursor-pointer rounded-lg bg-green-600/20 px-2.5 py-1 text-[11px] font-semibold text-green-300 ring-1 ring-green-500/25 transition hover:bg-green-600/30 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            Trade
+                            Swap
                           </button>
                         </>
                       ) : null}
@@ -216,14 +370,37 @@ export function FreeAgentsList({
         </div>
       )}
 
-      {pickupTarget && canPickUp ? (
-        <FreeAgentPickupModal
-          leagueId={leagueId!}
-          targetPlayer={pickupTarget}
-          mySquad={mySquad!}
-          pendingPlayerIds={pendingPlayerIds ?? new Set()}
-          onClose={() => setPickupTarget(null)}
-        />
+      {/* Swap player selection modal */}
+      {swapTarget && windowOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setSwapTarget(null)}>
+          <div
+            className="mx-4 w-full max-w-md rounded-2xl border border-white/10 bg-neutral-900 p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white">Swap for {swapTarget.name}</h3>
+            <p className="mt-1 text-sm text-neutral-400">Select a player from your squad to drop:</p>
+            <div className="mt-3 max-h-64 space-y-1 overflow-y-auto rounded-xl border border-white/10 bg-neutral-950/50 p-2">
+              {effectiveSquad
+                .filter((p) => !stagedDropIds.has(p.id))
+                .map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleStageSwap(swapTarget, p)}
+                    className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-white/5"
+                  >
+                    <PlayerMeta variant="inline" role={p.role} nationality={p.nationality} isOverseas={p.is_overseas} />
+                    <span className="truncate text-neutral-200">{p.name}</span>
+                  </button>
+                ))}
+            </div>
+            <button
+              onClick={() => setSwapTarget(null)}
+              className="mt-4 w-full cursor-pointer rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-neutral-300 transition hover:bg-white/10"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       ) : null}
     </div>
   );

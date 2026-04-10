@@ -42,7 +42,7 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
 
   const { data: privateTeams } = await supabase
     .from("private_league_teams")
-    .select("id, team_name, team_color, squad_player_ids, starting_xi_player_ids, captain_player_id, vice_captain_player_id, claimed_by, xi_confirmed_at")
+    .select("id, team_name, team_color, squad_player_ids, starting_xi_player_ids, captain_player_id, vice_captain_player_id, claimed_by, xi_confirmed_at, fa_window_used_at")
     .eq("league_id", leagueId);
 
   const claimedByIds = [...new Set((privateTeams ?? []).map((t) => (t.claimed_by as string | null)).filter(Boolean))] as string[];
@@ -61,6 +61,7 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
 
   const isHost = user?.id === league.host_id;
   const myClaimedTeamId = (privateTeams ?? []).find((t) => (t.claimed_by as string | null) === user?.id)?.id ?? null;
+  const myTeamFaWindowUsedAt = (privateTeams ?? []).find((t) => t.id === myClaimedTeamId)?.fa_window_used_at as string | null ?? null;
   const ownersByTeamId = Object.fromEntries(
     (privateTeams ?? [])
       .map((t) => [t.id, (t.claimed_by as string | null) ? ownerNameByUserId.get(t.claimed_by as string) ?? null : null] as const)
@@ -231,6 +232,8 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
                     mySquad={mySquadPlayers}
                     pendingPlayerIds={pendingPlayerIds}
                     pointsByPlayerId={pointsByPlayerId}
+                    faWindowUsedAt={myTeamFaWindowUsedAt}
+                    hasTeam={!!myClaimedTeamId}
                   />
                 </section>
               ),
