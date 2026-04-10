@@ -385,6 +385,7 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
                       myTeamId={myClaimedTeamId}
                       playersById={tradesPlayersById}
                       teamsById={tradesTeamsById}
+                      ownersByTeamId={ownersByTeamId}
                     />
                   ) : (
                     <p className="py-6 text-center text-sm text-neutral-500">

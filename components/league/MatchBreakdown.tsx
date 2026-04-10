@@ -16,7 +16,7 @@ type PlayerLine = {
   effective_points?: number;
 };
 
-export function MatchBreakdown({ scores, teams }: { scores: ScoreRow[]; teams: LeagueTeamDisplay[] }) {
+export function MatchBreakdown({ scores, teams, matchNames }: { scores: ScoreRow[]; teams: LeagueTeamDisplay[]; matchNames?: Record<string, string> }) {
   const names = new Map(teams.map((t) => [t.id, t.team_name]));
 
   // Group by date, then by match within each date
@@ -45,7 +45,7 @@ export function MatchBreakdown({ scores, teams }: { scores: ScoreRow[]; teams: L
                 <div className="mt-2 space-y-3">
                   {[...matches.entries()].map(([mid, rows]) => (
                     <div key={mid} className="space-y-1">
-                      <p className="text-xs text-neutral-500">Match {mid}</p>
+                      <p className="text-xs text-neutral-500">{matchNames?.[mid] ?? `Match ${mid}`}</p>
                       <ul className="space-y-1 text-sm">
                         {rows.map((r) => (
                           <MatchScoreRow key={r.id} row={r} teamName={names.get(r.scoreboard_team_id) ?? r.scoreboard_team_id} />
