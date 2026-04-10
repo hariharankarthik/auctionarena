@@ -189,7 +189,14 @@ export function TradesList({ trades, myTeamId, playersById, teamsById, ownersByT
                   <div className="space-y-1.5">
                     {isPickup ? (
                       <p className="text-sm">
-                        <span className="text-neutral-400">Picked up </span>
+                        {section === "history" ? (
+                          <>
+                            {renderTeam(t.proposer_team_id)}
+                            <span className="text-neutral-400"> picked up </span>
+                          </>
+                        ) : (
+                          <span className="text-neutral-400">Picked up </span>
+                        )}
                         {renderPlayer(t.requested_player_id)}
                         <span className="text-neutral-400">, dropped </span>
                         {renderPlayer(t.offered_player_id)}
