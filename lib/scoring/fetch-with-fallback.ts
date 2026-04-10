@@ -30,7 +30,6 @@ import {
   mergeBowlingFromCricApiJson,
   type CricApiMappedPerformance,
 } from "@/lib/cricapi/fetch-scorecard";
-import { isCricApiError } from "@/lib/cricapi/errors";
 
 type FallbackOpts = {
   /** CricAPI match UUID (used for CricAPI call). */
@@ -70,12 +69,8 @@ export async function fetchScorecardWithFallback(
     extracted = mergeBowlingFromCricApiJson(extracted, raw);
     return { performances: extracted, provider: "cricapi", raw };
   } catch (err) {
-    // Only fall back to Cricsheet for rate-limit errors
-    if (!isCricApiError(err) || err.classified.code !== "RATE_LIMIT") {
-      throw err;
-    }
-
-    // 2. CricAPI rate-limited → try Cricsheet cache (backfill data)
+    // 2. CricAPI failed — try Cricsheet cache as fallback for ANY error
+    // (rate-limit, HTTP 500, timeout, network errors, etc.)
     if (supabase && matchDate) {
       const cached = await tryLoadCricsheetCache(supabase, matchDate, expectedTeams);
       if (cached && cached.length > 0) {
@@ -83,9 +78,7 @@ export async function fetchScorecardWithFallback(
       }
     }
 
-    // 3. Cricsheet also doesn't have data yet — re-throw
-    // The match stays un-scored; next cron run will auto-sync Cricsheet
-    // and retry.
+    // 3. Cricsheet also doesn't have data — re-throw original error
     throw err;
   }
 }
