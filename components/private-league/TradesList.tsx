@@ -35,6 +35,7 @@ interface Props {
   myTeamId: string | null;
   playersById: Record<string, PlayerInfo>;
   teamsById: Record<string, TeamInfo>;
+  ownersByTeamId?: Record<string, string>;
 }
 
 type Section = "incoming" | "outgoing" | "history";
@@ -57,7 +58,7 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
-export function TradesList({ trades, myTeamId, playersById, teamsById }: Props) {
+export function TradesList({ trades, myTeamId, playersById, teamsById, ownersByTeamId }: Props) {
   const router = useRouter();
   const [section, setSection] = useState<Section>("incoming");
   const [loading, setLoading] = useState<string | null>(null);
@@ -117,6 +118,7 @@ export function TradesList({ trades, myTeamId, playersById, teamsById }: Props) 
     if (!id) return <span className="text-green-400">Free Agent Pool</span>;
     const t = teamsById[id];
     if (!t) return <span className="text-neutral-500">Unknown team</span>;
+    const owner = ownersByTeamId?.[id];
     return (
       <span className="inline-flex items-center gap-1.5">
         <span
@@ -124,6 +126,7 @@ export function TradesList({ trades, myTeamId, playersById, teamsById }: Props) 
           style={{ backgroundColor: t.team_color ?? "#3B82F6" }}
         />
         <span className="text-neutral-200">{t.team_name}</span>
+        {owner ? <span className="text-neutral-500">· {owner}</span> : null}
       </span>
     );
   };

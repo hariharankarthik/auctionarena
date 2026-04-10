@@ -13,18 +13,19 @@ import {
 import type { LeagueTeamDisplay } from "@/lib/sports/types";
 import type { ScoreRow } from "@/hooks/useLeaderboard";
 
-export function PointsChart({ scores, teams }: { scores: ScoreRow[]; teams: LeagueTeamDisplay[] }) {
+export function PointsChart({ scores, teams, matchNames }: { scores: ScoreRow[]; teams: LeagueTeamDisplay[]; matchNames?: Record<string, string> }) {
   const teamIds = teams.map((t) => t.id);
 
   const data = useMemo(() => {
     const byMatch = new Map<string, Record<string, string | number>>();
     for (const s of scores) {
-      const row = byMatch.get(s.match_id) ?? { match: s.match_id };
+      const label = matchNames?.[s.match_id] ?? s.match_id;
+      const row = byMatch.get(s.match_id) ?? { match: label };
       row[s.scoreboard_team_id] = Number(s.total_points);
       byMatch.set(s.match_id, row);
     }
     return [...byMatch.values()].sort((a, b) => String(a.match).localeCompare(String(b.match)));
-  }, [scores]);
+  }, [scores, matchNames]);
 
   const colors = ["#34d399", "#60a5fa", "#f472b6", "#fbbf24", "#a78bfa", "#f87171"];
 

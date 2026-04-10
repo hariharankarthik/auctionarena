@@ -19,11 +19,13 @@ export type ScoreRow = {
 export function useLeaderboard(leagueId: string | null) {
   const supabase = useMemo(() => createClient(), []);
   const [scores, setScores] = useState<ScoreRow[]>([]);
+  const [matchNames, setMatchNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!leagueId) {
       setScores([]);
+      setMatchNames({});
       setLoading(false);
       return;
     }
@@ -43,12 +45,27 @@ export function useLeaderboard(leagueId: string | null) {
         total_points: number;
         breakdown: Record<string, unknown>;
       }>;
-      setScores(
-        raw.map((r) => ({
-          ...r,
-          scoreboard_team_id: (r.team_id ?? r.private_team_id) as string,
-        })),
-      );
+      const rows = raw.map((r) => ({
+        ...r,
+        scoreboard_team_id: (r.team_id ?? r.private_team_id) as string,
+      }));
+      setScores(rows);
+
+      // Fetch human-readable match names from cricket_sync_tracker via RPC
+      const matchIds = [...new Set(rows.map((r) => r.match_id))];
+      if (matchIds.length > 0) {
+        const { data: nameRows } = await supabase.rpc("get_match_display_names", {
+          p_match_ids: matchIds,
+        });
+        if (!cancelled && Array.isArray(nameRows)) {
+          const names: Record<string, string> = {};
+          for (const r of nameRows as { match_id: string; display_name: string }[]) {
+            names[r.match_id] = r.display_name;
+          }
+          setMatchNames(names);
+        }
+      }
+
       setLoading(false);
     }
 
@@ -71,5 +88,5 @@ export function useLeaderboard(leagueId: string | null) {
     };
   }, [leagueId, supabase]);
 
-  return { scores, loading };
+  return { scores, matchNames, loading };
 }
