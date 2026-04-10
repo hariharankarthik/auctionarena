@@ -134,6 +134,7 @@ async function loadPendingMatches(
     .from("cricket_sync_tracker")
     .select("match_id,match_date,teams,status,source_preferred,last_error_code,last_error_message,attempts")
     .in("status", ["pending", "failed"])
+    .lt("attempts", 10)
     .lte("match_date", maxDate)
     .order("match_date", { ascending: true })
     .limit(100);
@@ -189,6 +190,33 @@ async function markSynced(
       last_error_code: null,
       last_error_message: null,
       resolved_at: new Date().toISOString(),
+      last_attempt_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "match_id" },
+  );
+}
+
+async function markFailed(
+  supabase: ReturnType<typeof createServerClient>,
+  row: PendingSyncRow & { error_code?: string; error_message?: string },
+): Promise<void> {
+  const current = await supabase
+    .from("cricket_sync_tracker")
+    .select("attempts")
+    .eq("match_id", row.match_id)
+    .maybeSingle();
+  const attempts = (current.data?.attempts ?? 0) + 1;
+  await supabase.from("cricket_sync_tracker").upsert(
+    {
+      match_id: row.match_id,
+      match_date: row.match_date,
+      teams: row.teams ?? null,
+      source_preferred: "cricapi",
+      status: "failed",
+      last_error_code: row.error_code ?? "UNKNOWN",
+      last_error_message: row.error_message ?? "Unknown error",
+      attempts,
       last_attempt_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },
@@ -502,12 +530,34 @@ export async function GET(req: NextRequest) {
   let updatedTotal = 0;
   let pendingCount = 0;
   let syncedFromPending = 0;
+  let failedCount = 0;
+  let skippedMaxAttempts = 0;
 
   for (const matchId of matchIds) {
     const meta = discoveredMetaById.get(matchId);
     const pendingMeta = pendingById.get(matchId);
     const expectedTeams = meta?.teams ?? pendingMeta?.teams ?? undefined;
     const effectiveMatchDate = meta?.matchDate ?? pendingMeta?.match_date ?? cronMatchDate;
+
+    // Skip matches that have exceeded max retry attempts
+    const MAX_ATTEMPTS = 10;
+    const priorAttempts = pendingMeta?.attempts ?? 0;
+    if (priorAttempts >= MAX_ATTEMPTS) {
+      skippedMaxAttempts += 1;
+      // Mark permanently failed if not already
+      if (pendingMeta?.status !== "failed") {
+        await markFailed(supabaseAdmin, {
+          match_id: matchId,
+          match_date: effectiveMatchDate,
+          teams: expectedTeams,
+          status: "failed",
+          source_preferred: "cricapi",
+          error_code: "MAX_ATTEMPTS",
+          error_message: `Gave up after ${priorAttempts} attempts. Check player name mappings or CricAPI data availability.`,
+        });
+      }
+      continue;
+    }
 
     // Cache: scorecards don't change for completed matches.
     // If we've already written *any* fantasy_scores rows for this match id, skip API calls.
@@ -533,6 +583,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Wrap entire match scoring in try-catch so one match failure doesn't crash the whole cron
+    try {
+
     let extracted;
     try {
       // Fetch scorecard: primary CricAPI; on rate-limit use Cricsheet cache.
@@ -557,7 +610,38 @@ export async function GET(req: NextRequest) {
         });
         continue;
       }
-      throw e;
+      // Non-rate-limit error — mark as failed, continue to next match
+      failedCount += 1;
+      const errMsg = e instanceof Error ? e.message : String(e);
+      const errCode = isCricApiError(e) ? e.classified.code : "FETCH_ERROR";
+      console.error(`[cron] Match ${matchId} fetch failed: ${errMsg}`);
+      await markFailed(supabaseAdmin, {
+        match_id: matchId,
+        match_date: effectiveMatchDate,
+        teams: expectedTeams,
+        status: "failed",
+        source_preferred: "cricapi",
+        error_code: errCode,
+        error_message: errMsg.slice(0, 500),
+      });
+      continue;
+    }
+
+    // Guard: if extracted has entries but ALL names failed to match, don't mark synced
+    // This applies per-league below, but check globally first for a fast fail
+    if (extracted.length === 0) {
+      failedCount += 1;
+      console.error(`[cron] Match ${matchId}: CricAPI returned no batting performances`);
+      await markFailed(supabaseAdmin, {
+        match_id: matchId,
+        match_date: effectiveMatchDate,
+        teams: expectedTeams,
+        status: "failed",
+        source_preferred: "cricapi",
+        error_code: "EMPTY_SCORECARD",
+        error_message: "CricAPI returned no batting performances. Match may not be complete yet.",
+      });
+      continue;
     }
 
     for (const league of auctionLeagues) {
@@ -581,7 +665,22 @@ export async function GET(req: NextRequest) {
       }
 
       const players = playersBySport.get(league.sport_id) ?? [];
-      const { performances } = mapCricApiExtractedToPerformances(players, extracted);
+      const { performances, unmatched } = mapCricApiExtractedToPerformances(players, extracted);
+
+      // Log unmatched names for debugging
+      if (unmatched.length > 0) {
+        console.warn(
+          `[cron] Match ${matchId}, league ${league.id}: ${unmatched.length} unmatched player(s): ${unmatched.join(", ")}`,
+        );
+      }
+
+      // Guard: if ALL extracted players failed name matching, skip scoring this league
+      if (performances.length === 0 && extracted.length > 0) {
+        console.error(
+          `[cron] Match ${matchId}, league ${league.id}: ALL ${extracted.length} player names unmatched — skipping`,
+        );
+        continue;
+      }
 
       // Aggregate effective points per team with XI + C/VC multipliers
       const agg = new Map<string, { total: number; breakdown: Record<string, number> }>();
@@ -620,6 +719,7 @@ export async function GET(req: NextRequest) {
           breakdown: {
             source: "cricapi_v1",
             engine_version: "auctionroom-ipl-v1",
+            ...(unmatched.length > 0 ? { unmatched_names: unmatched } : {}),
           },
         };
       });
@@ -687,7 +787,20 @@ export async function GET(req: NextRequest) {
       }
 
       const players = playersBySport.get(league.sport_id) ?? [];
-      const { performances: pPerformances } = mapCricApiExtractedToPerformances(players, extracted);
+      const { performances: pPerformances, unmatched: pUnmatched } = mapCricApiExtractedToPerformances(players, extracted);
+
+      if (pUnmatched.length > 0) {
+        console.warn(
+          `[cron] Match ${matchId}, private league ${league.id}: ${pUnmatched.length} unmatched player(s): ${pUnmatched.join(", ")}`,
+        );
+      }
+
+      if (pPerformances.length === 0 && extracted.length > 0) {
+        console.error(
+          `[cron] Match ${matchId}, private league ${league.id}: ALL ${extracted.length} player names unmatched — skipping`,
+        );
+        continue;
+      }
 
       // Build matchPlayerIds set and role/price maps for auto-substitution
       const matchPlayerIds = new Set(pPerformances.map((row) => row.player_id));
@@ -771,6 +884,7 @@ export async function GET(req: NextRequest) {
             source: "cricapi_v1",
             engine_version: "auctionroom-ipl-v1",
             league_kind: "private",
+            ...(pUnmatched.length > 0 ? { unmatched_names: pUnmatched } : {}),
           },
         };
       });
@@ -791,6 +905,22 @@ export async function GET(req: NextRequest) {
       status: "synced",
       source_preferred: "cricapi",
     });
+
+    } catch (matchErr) {
+      // Catch-all: any unexpected error during this match's scoring
+      failedCount += 1;
+      const errMsg = matchErr instanceof Error ? matchErr.message : String(matchErr);
+      console.error(`[cron] Match ${matchId} unexpected error: ${errMsg}`);
+      await markFailed(supabaseAdmin, {
+        match_id: matchId,
+        match_date: effectiveMatchDate,
+        teams: expectedTeams,
+        status: "failed",
+        source_preferred: "cricapi",
+        error_code: "UNEXPECTED",
+        error_message: errMsg.slice(0, 500),
+      });
+    }
   }
 
   return json({
@@ -798,6 +928,8 @@ export async function GET(req: NextRequest) {
     synced_matches: matchIds.length,
     updated: updatedTotal,
     pending: pendingCount,
+    failed: failedCount,
+    skipped_max_attempts: skippedMaxAttempts,
     synced_from_pending: syncedFromPending,
     cricsheet_imported: cricsheetImported,
     cron_match_date: cronMatchDate,

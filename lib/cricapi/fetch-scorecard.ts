@@ -63,7 +63,10 @@ function str(v: unknown): string {
 
 /** True if row looks like a dismissed innings (not "did not bat"). */
 function isDismissedBatting(row: Record<string, unknown>): boolean {
-  const d = str(row["dismissal-info"] ?? row.dismissal ?? row.dismissalInfo ?? "");
+  const d = str(
+    row["dismissal-info"] ?? row.dismissal ?? row.dismissalInfo ??
+    row.mode ?? row.how_out ?? row.wicketCode ?? row.out_desc ?? "",
+  );
   if (!d) return false;
   const low = d.toLowerCase();
   if (low.includes("not out") || low.includes("did not bat") || low.includes("dnb")) return false;
