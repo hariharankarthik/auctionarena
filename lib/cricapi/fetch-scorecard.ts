@@ -251,6 +251,35 @@ export function mergeBowlingFromCricApiJson(
 ): CricApiMappedPerformance[] {
   const byName = new Map(performances.map((p) => [normalizeName(p.playerName), p]));
 
+  // Build last-name index for partial-name matching (CricAPI sometimes abbreviates)
+  const byLastName = new Map<string, CricApiMappedPerformance[]>();
+  for (const p of performances) {
+    const parts = normalizeName(p.playerName).split(" ");
+    const last = parts[parts.length - 1];
+    if (last) {
+      const arr = byLastName.get(last) ?? [];
+      arr.push(p);
+      byLastName.set(last, arr);
+    }
+  }
+
+  function resolveBowler(name: string): CricApiMappedPerformance | null {
+    const key = normalizeName(name);
+    if (!key) return null;
+    const exact = byName.get(key);
+    if (exact) return exact;
+    const parts = key.split(" ");
+    const lastName = parts[parts.length - 1];
+    const lastMatches = byLastName.get(lastName);
+    if (lastMatches?.length === 1) return lastMatches[0];
+    if (lastMatches && lastMatches.length > 1 && parts.length > 1) {
+      const initial = parts[0][0];
+      const disambig = lastMatches.filter((p) => normalizeName(p.playerName).startsWith(initial));
+      if (disambig.length === 1) return disambig[0];
+    }
+    return null;
+  }
+
   function visit(node: unknown) {
     if (!node) return;
     if (Array.isArray(node)) {
@@ -259,15 +288,14 @@ export function mergeBowlingFromCricApiJson(
     }
     if (typeof node !== "object") return;
     const o = node as Record<string, unknown>;
-    const bowl = o.bowling ?? o.bowlers;
+    const bowl = o.bowling ?? o.bowlers ?? o.bowler ?? o.Bowling ?? o.Bowlers;
     if (Array.isArray(bowl)) {
       for (const raw of bowl) {
         if (!raw || typeof raw !== "object") continue;
         const r = raw as Record<string, unknown>;
-        const name = str(r.bowler ?? r.name ?? r.player);
+        const name = str(r.bowler ?? r.name ?? r.player ?? r.Bowler);
         if (!name) continue;
-        const key = normalizeName(name);
-        const row = byName.get(key);
+        const row = resolveBowler(name);
         if (!row) continue;
         const overs = num(r.O ?? r.o ?? r.overs);
         const ballsBowled = Math.round(overs * 6) || num(r.balls ?? r.b);

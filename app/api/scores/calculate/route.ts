@@ -410,6 +410,20 @@ export async function POST(req: NextRequest) {
       data_source: dataSource ?? (cricapiUsed ? "cricapi" : "manual"),
       performances_applied: applied,
       ...(unmatchedNames?.length ? { unmatched_names: unmatchedNames } : {}),
+      // Diagnostic: summary of extracted stats per discipline
+      stats_summary: cricapiUsed ? {
+        with_batting: performances.filter((p) => p.batting).length,
+        with_bowling: performances.filter((p) => p.bowling).length,
+        with_fielding: performances.filter((p) => p.fielding).length,
+        sample_bowling: performances
+          .filter((p) => p.bowling)
+          .slice(0, 3)
+          .map((p) => ({ player_id: p.player_id, bowling: p.bowling })),
+        sample_fielding: performances
+          .filter((p) => p.fielding)
+          .slice(0, 3)
+          .map((p) => ({ player_id: p.player_id, fielding: p.fielding })),
+      } : undefined,
     });
   }
 
