@@ -490,12 +490,12 @@ export async function GET(req: NextRequest) {
   const auctionLeagues = (leagues ?? []).filter((l: ActiveLeagueRow) => l.league_kind === "auction");
   const privateLeagues = (leagues ?? []).filter((l: ActiveLeagueRow) => l.league_kind === "private");
 
-  // Preload players for each sport once.
+  // Preload players for each sport once (including name_aliases for fuzzy matching).
   const sportIds = [...new Set((leagues ?? []).map((l: ActiveLeagueRow) => l.sport_id))];
-  const playersBySport = new Map<string, { id: string; name: string }[]>();
+  const playersBySport = new Map<string, { id: string; name: string; name_aliases?: string[] | null }[]>();
   await Promise.all(
     sportIds.map(async (sportId) => {
-      const { data, error } = await supabaseAdmin.from("players").select("id, name").eq("sport_id", sportId);
+      const { data, error } = await supabaseAdmin.from("players").select("id, name, name_aliases").eq("sport_id", sportId);
       if (!error) playersBySport.set(sportId, data ?? []);
     }),
   );
@@ -659,7 +659,18 @@ export async function GET(req: NextRequest) {
       }
 
       const players = playersBySport.get(league.sport_id) ?? [];
-      const { performances, unmatched } = mapCricApiExtractedToPerformances(players, extracted);
+      const { performances, unmatched, autoCorrections } = mapCricApiExtractedToPerformances(players, extracted);
+
+      // Auto-save CricAPI name as alias for fuzzy-matched players
+      if (autoCorrections.length > 0) {
+        for (const ac of autoCorrections) {
+          console.log(`[auto-alias] "${ac.cricapi_name}" → "${ac.db_name}" (${ac.method})`);
+          await supabaseAdmin.rpc("add_player_name_alias", {
+            p_player_id: ac.player_id,
+            p_alias: ac.cricapi_name,
+          });
+        }
+      }
 
       // Log unmatched names for debugging
       if (unmatched.length > 0) {
@@ -797,7 +808,17 @@ export async function GET(req: NextRequest) {
       }
 
       const players = playersBySport.get(league.sport_id) ?? [];
-      const { performances: pPerformances, unmatched: pUnmatched } = mapCricApiExtractedToPerformances(players, extracted);
+      const { performances: pPerformances, unmatched: pUnmatched, autoCorrections: pAutoCorrections } = mapCricApiExtractedToPerformances(players, extracted);
+
+      if (pAutoCorrections.length > 0) {
+        for (const ac of pAutoCorrections) {
+          console.log(`[auto-alias] "${ac.cricapi_name}" → "${ac.db_name}" (${ac.method})`);
+          await supabaseAdmin.rpc("add_player_name_alias", {
+            p_player_id: ac.player_id,
+            p_alias: ac.cricapi_name,
+          });
+        }
+      }
 
       if (pUnmatched.length > 0) {
         console.warn(
