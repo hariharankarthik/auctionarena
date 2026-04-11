@@ -21,6 +21,15 @@ import * as fs from "fs";
 import * as path from "path";
 import { parseCricsheetMatch } from "@/lib/cricsheet/fetch-scorecard";
 
+// Load .env.local if present (for local dev)
+const envPath = path.resolve(__dirname, "../.env.local");
+if (fs.existsSync(envPath)) {
+  for (const line of fs.readFileSync(envPath, "utf-8").split("\n")) {
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+  }
+}
+
 const CRICSHEET_IPL_URL = "https://cricsheet.org/downloads/ipl_json.zip";
 const TMP_DIR = path.join("/tmp", "cricsheet-import");
 
