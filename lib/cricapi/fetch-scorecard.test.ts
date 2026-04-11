@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertCricApiScorecardPayload, extractPerformancesFromCricApiJson } from "./fetch-scorecard";
+import { assertCricApiScorecardPayload, extractPerformancesFromCricApiJson, parseFieldingCredits, mergeFieldingFromCricApiJson } from "./fetch-scorecard";
 
 describe("assertCricApiScorecardPayload", () => {
   it("throws with reason when data is missing", () => {
@@ -52,6 +52,79 @@ describe("extractPerformancesFromCricApiJson", () => {
     expect(perf.length).toBe(1);
     expect(perf[0]!.playerName).toBe("V Kohli");
     expect(perf[0]!.stats.batting?.runs).toBe(50);
+  });
+});
+
+describe("parseFieldingCredits", () => {
+  it("parses caught: c FielderName b BowlerName", () => {
+    const credits = parseFieldingCredits("c Kohli b Bumrah");
+    expect(credits).toEqual([{ fielderName: "Kohli", type: "catch" }]);
+  });
+
+  it("parses caught and bowled: c & b BowlerName", () => {
+    const credits = parseFieldingCredits("c & b Bumrah");
+    expect(credits).toEqual([{ fielderName: "Bumrah", type: "catch" }]);
+  });
+
+  it("parses caught with keeper marker: c †Dhoni b Ashwin", () => {
+    const credits = parseFieldingCredits("c †Dhoni b Ashwin");
+    expect(credits).toEqual([{ fielderName: "Dhoni", type: "catch" }]);
+  });
+
+  it("parses stumped: st Dhoni b Ashwin", () => {
+    const credits = parseFieldingCredits("st Dhoni b Ashwin");
+    expect(credits).toEqual([{ fielderName: "Dhoni", type: "stumping" }]);
+  });
+
+  it("parses single run out: run out (Jadeja)", () => {
+    const credits = parseFieldingCredits("run out (Jadeja)");
+    expect(credits).toEqual([{ fielderName: "Jadeja", type: "runOutDirect" }]);
+  });
+
+  it("parses two-person run out: run out (Jadeja/Dhoni)", () => {
+    const credits = parseFieldingCredits("run out (Jadeja/Dhoni)");
+    expect(credits).toEqual([
+      { fielderName: "Jadeja", type: "runOutThrower" },
+      { fielderName: "Dhoni", type: "runOutDirect" },
+    ]);
+  });
+
+  it("returns empty for bowled/lbw/hit wicket", () => {
+    expect(parseFieldingCredits("b Bumrah")).toEqual([]);
+    expect(parseFieldingCredits("lbw b Ashwin")).toEqual([]);
+    expect(parseFieldingCredits("hit wicket b Ashwin")).toEqual([]);
+  });
+
+  it("returns empty for not out", () => {
+    expect(parseFieldingCredits("not out")).toEqual([]);
+  });
+});
+
+describe("mergeFieldingFromCricApiJson", () => {
+  it("credits fielders from dismissal strings in CricAPI payload", () => {
+    const performances = [
+      { playerName: "Virat Kohli", stats: { batting: { runs: 50, ballsFaced: 30, fours: 4, sixes: 1, dismissed: false, playedInStartingXi: true } } },
+      { playerName: "MS Dhoni", stats: { batting: { runs: 20, ballsFaced: 15, fours: 2, sixes: 0, dismissed: false, playedInStartingXi: true } } },
+    ];
+    const data = {
+      data: {
+        innings: [
+          {
+            scores: [[
+              { batsman: "Player A", R: 10, B: 8, "4s": 1, "6s": 0, "dismissal-info": "c Kohli b Bumrah" },
+              { batsman: "Player B", R: 5, B: 3, "4s": 0, "6s": 0, "dismissal-info": "st Dhoni b Ashwin" },
+              { batsman: "Player C", R: 0, B: 1, "4s": 0, "6s": 0, "dismissal-info": "c Kohli b Jadeja" },
+            ]],
+          },
+        ],
+      },
+    };
+
+    const result = mergeFieldingFromCricApiJson(performances, data);
+    const kohli = result.find((p) => p.playerName === "Virat Kohli");
+    const dhoni = result.find((p) => p.playerName === "MS Dhoni");
+    expect(kohli?.stats.fielding?.catches).toBe(2);
+    expect(dhoni?.stats.fielding?.stumpings).toBe(1);
   });
 });
 

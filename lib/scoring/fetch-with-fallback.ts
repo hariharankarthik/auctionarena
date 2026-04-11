@@ -28,6 +28,7 @@ import {
   fetchCricApiScorecardJson,
   extractPerformancesFromCricApiJson,
   mergeBowlingFromCricApiJson,
+  mergeFieldingFromCricApiJson,
   type CricApiMappedPerformance,
 } from "@/lib/cricapi/fetch-scorecard";
 
@@ -67,6 +68,7 @@ export async function fetchScorecardWithFallback(
     const raw = await fetchCricApiScorecardJson(matchId);
     let extracted = extractPerformancesFromCricApiJson(raw);
     extracted = mergeBowlingFromCricApiJson(extracted, raw);
+    extracted = mergeFieldingFromCricApiJson(extracted, raw);
     return { performances: extracted, provider: "cricapi", raw };
   } catch (err) {
     // 2. CricAPI failed — try Cricsheet cache as fallback for ANY error

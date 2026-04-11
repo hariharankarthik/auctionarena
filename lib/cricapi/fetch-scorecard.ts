@@ -295,3 +295,199 @@ export function mergeBowlingFromCricApiJson(
   visit(root);
   return performances;
 }
+
+// ── Fielding extraction from dismissal strings ──────────────────────
+
+/**
+ * Extract the dismissal text from a CricAPI batting row.
+ * CricAPI uses various keys across payload versions.
+ */
+function getDismissalText(raw: Record<string, unknown>): string {
+  return str(
+    raw["dismissal-info"] ?? raw.dismissal ?? raw.dismissalInfo ??
+    raw.mode ?? raw.how_out ?? raw.wicketCode ?? raw.out_desc ?? "",
+  );
+}
+
+type FieldingCredit = { fielderName: string; type: "catch" | "stumping" | "runOutDirect" | "runOutThrower" };
+
+/**
+ * Parse a dismissal string into fielding credits.
+ *
+ * Common CricAPI patterns:
+ *   "c Kohli b Bumrah"              → catch(Kohli)
+ *   "c & b Bumrah"                  → catch(Bumrah)
+ *   "c †Dhoni b Ashwin"             → catch(Dhoni)   († = keeper marker)
+ *   "st Dhoni b Ashwin"             → stumping(Dhoni)
+ *   "st †Dhoni b Ashwin"            → stumping(Dhoni)
+ *   "run out (Jadeja)"              → runOutDirect(Jadeja)
+ *   "run out (Jadeja/Dhoni)"        → runOutThrower(Jadeja) + runOutDirect(Dhoni)
+ *   "run out Jadeja"                → runOutDirect(Jadeja)
+ *   "lbw b Bumrah"                  → no fielding credit
+ *   "b Ashwin"                      → no fielding credit
+ *   "hit wicket b Ashwin"           → no fielding credit
+ */
+export function parseFieldingCredits(dismissalText: string): FieldingCredit[] {
+  if (!dismissalText) return [];
+  const text = dismissalText.trim();
+  const lower = text.toLowerCase();
+
+  // Caught: "c FielderName b BowlerName" or "c & b BowlerName"
+  if (lower.startsWith("c ") || lower.startsWith("ct ") || lower.startsWith("caught ")) {
+    // "c & b BowlerName" — bowler caught it themselves
+    if (/^(?:c|ct|caught)\s+&\s+b\s+/i.test(text)) {
+      const bowlerMatch = text.match(/^(?:c|ct|caught)\s+&\s+b\s+(.+)/i);
+      if (bowlerMatch) {
+        return [{ fielderName: cleanFielderName(bowlerMatch[1]), type: "catch" }];
+      }
+    }
+    // "c FielderName b BowlerName"
+    const catchMatch = text.match(/^(?:c|ct|caught)\s+(.+?)\s+b\s+/i);
+    if (catchMatch) {
+      return [{ fielderName: cleanFielderName(catchMatch[1]), type: "catch" }];
+    }
+  }
+
+  // Stumped: "st FielderName b BowlerName"
+  if (lower.startsWith("st ") || lower.startsWith("stumped ")) {
+    const stMatch = text.match(/^(?:st|stumped)\s+(.+?)\s+b\s+/i);
+    if (stMatch) {
+      return [{ fielderName: cleanFielderName(stMatch[1]), type: "stumping" }];
+    }
+  }
+
+  // Run out: "run out (Name)" or "run out (Thrower/Catcher)" or "run out Name"
+  if (lower.includes("run out")) {
+    // Parenthesized: "run out (Name1/Name2)" or "run out (Name)"
+    const parenMatch = text.match(/run\s*out\s*\(([^)]+)\)/i);
+    if (parenMatch) {
+      const inside = parenMatch[1].trim();
+      const parts = inside.split("/").map((s) => cleanFielderName(s));
+      if (parts.length >= 2 && parts[0] && parts[1]) {
+        // Thrower / Catcher (or direct-hit person is last)
+        return [
+          { fielderName: parts[0], type: "runOutThrower" },
+          { fielderName: parts[1], type: "runOutDirect" },
+        ];
+      }
+      if (parts[0]) {
+        return [{ fielderName: parts[0], type: "runOutDirect" }];
+      }
+    }
+    // No parens: "run out FielderName"
+    const bareMatch = text.match(/run\s*out\s+([A-Z][\w\s.''-]+)/i);
+    if (bareMatch) {
+      return [{ fielderName: cleanFielderName(bareMatch[1]), type: "runOutDirect" }];
+    }
+  }
+
+  return [];
+}
+
+/** Strip keeper marker (†), sub markers, and extra whitespace from fielder name. */
+function cleanFielderName(name: string): string {
+  return name
+    .replace(/[†‡]/g, "")
+    .replace(/\(sub\)/gi, "")
+    .replace(/^sub\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Merge fielding stats into existing performances by parsing dismissal strings.
+ * Walks the CricAPI payload to find batting rows, extracts dismissal text,
+ * and credits the correct fielder with catches/stumpings/run-outs.
+ */
+export function mergeFieldingFromCricApiJson(
+  performances: CricApiMappedPerformance[],
+  data: unknown,
+): CricApiMappedPerformance[] {
+  const byName = new Map(performances.map((p) => [normalizeName(p.playerName), p]));
+
+  // Build a last-name index for partial-name matching (dismissals often use only last name)
+  const byLastName = new Map<string, CricApiMappedPerformance[]>();
+  for (const p of performances) {
+    const parts = normalizeName(p.playerName).split(" ");
+    const last = parts[parts.length - 1];
+    if (last) {
+      const arr = byLastName.get(last) ?? [];
+      arr.push(p);
+      byLastName.set(last, arr);
+    }
+  }
+
+  function resolveFielder(fielderName: string): CricApiMappedPerformance | null {
+    const key = normalizeName(fielderName);
+    if (!key) return null;
+    // Exact full name match
+    const exact = byName.get(key);
+    if (exact) return exact;
+    // Last name match (dismissals often only say "Kohli" not "Virat Kohli")
+    const lastParts = key.split(" ");
+    const lastName = lastParts[lastParts.length - 1];
+    const lastMatches = byLastName.get(lastName);
+    if (lastMatches?.length === 1) return lastMatches[0];
+    // If multiple last-name matches, try first initial disambiguation
+    if (lastMatches && lastMatches.length > 1 && lastParts.length > 1) {
+      const initial = lastParts[0][0];
+      const disambig = lastMatches.filter((p) => normalizeName(p.playerName).startsWith(initial));
+      if (disambig.length === 1) return disambig[0];
+    }
+    return null;
+  }
+
+  const fieldingCounts = new Map<string, { perf: CricApiMappedPerformance; catches: number; stumpings: number; runOutsDirect: number; runOutsThrower: number }>();
+
+  function creditFielder(fielderName: string, type: FieldingCredit["type"]) {
+    const perf = resolveFielder(fielderName);
+    if (!perf) return;
+    const key = normalizeName(perf.playerName);
+    const cur = fieldingCounts.get(key) ?? { perf, catches: 0, stumpings: 0, runOutsDirect: 0, runOutsThrower: 0 };
+    if (type === "catch") cur.catches++;
+    else if (type === "stumping") cur.stumpings++;
+    else if (type === "runOutDirect") cur.runOutsDirect++;
+    else if (type === "runOutThrower") cur.runOutsThrower++;
+    fieldingCounts.set(key, cur);
+  }
+
+  // Walk through every batting row in the payload and parse dismissal text
+  function visit(node: unknown) {
+    if (!node) return;
+    if (Array.isArray(node)) {
+      for (const x of node) visit(x);
+      return;
+    }
+    if (typeof node !== "object") return;
+    const o = node as Record<string, unknown>;
+    const dismissal = getDismissalText(o);
+    if (dismissal) {
+      const credits = parseFieldingCredits(dismissal);
+      for (const c of credits) creditFielder(c.fielderName, c.type);
+    }
+    for (const v of Object.values(o)) visit(v);
+  }
+
+  const root = typeof data === "object" && data !== null && "data" in (data as object)
+    ? (data as { data: unknown }).data
+    : data;
+  visit(root);
+
+  // Apply fielding counts to matching performances
+  for (const [, counts] of fieldingCounts) {
+    const hasFielding = counts.catches > 0 || counts.stumpings > 0 || counts.runOutsDirect > 0 || counts.runOutsThrower > 0;
+    if (hasFielding) {
+      counts.perf.stats = {
+        ...counts.perf.stats,
+        fielding: {
+          catches: counts.catches || undefined,
+          stumpings: counts.stumpings || undefined,
+          runOutsDirect: counts.runOutsDirect || undefined,
+          runOutsThrower: counts.runOutsThrower || undefined,
+        },
+      };
+    }
+  }
+
+  return performances;
+}
