@@ -206,7 +206,7 @@ export function LeagueClient({
       {loading ? <p className="text-sm text-neutral-500">Loading scores…</p> : null}
       <Leaderboard scores={scores} teams={teams} ownersByTeamId={ownersByTeamId} matchMeta={matchMeta} myTeamId={myTeamId} />
       <PointsChart scores={scores} teams={teams} matchNames={matchNames} matchMeta={matchMeta} />
-      <MatchBreakdown scores={scores} teams={teams} matchNames={matchNames} />
+      <MatchBreakdown scores={scores} teams={teams} matchNames={matchNames} isHost={isHost} leagueId={leagueId} />
     </div>
   );
 }

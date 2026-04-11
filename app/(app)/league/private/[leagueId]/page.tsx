@@ -30,7 +30,7 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
 
   const { data: league, error } = await supabase
     .from("fantasy_leagues")
-    .select("id, name, host_id, league_kind, invite_code, sport_id, status")
+    .select("id, name, host_id, co_host_ids, league_kind, invite_code, sport_id, status")
     .eq("id", leagueId)
     .single();
 
@@ -59,7 +59,8 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
     team_color: t.team_color,
   }));
 
-  const isHost = user?.id === league.host_id;
+  const coHostIds = (league.co_host_ids ?? []) as string[];
+  const isHost = user?.id === league.host_id || coHostIds.includes(user?.id ?? "");
   const myClaimedTeamId = (privateTeams ?? []).find((t) => (t.claimed_by as string | null) === user?.id)?.id ?? null;
   const myTeamFaWindowUsedAt = (privateTeams ?? []).find((t) => t.id === myClaimedTeamId)?.fa_window_used_at as string | null ?? null;
   const ownersByTeamId = Object.fromEntries(
