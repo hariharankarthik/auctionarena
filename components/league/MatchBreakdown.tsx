@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import type { LeagueTeamDisplay } from "@/lib/sports/types";
 import type { ScoreRow } from "@/hooks/useLeaderboard";
+import { useCricApiMatchScoring, CricApiSyncError } from "@/hooks/useCricApiMatchScoring";
 
 const dateFmt = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" });
 
@@ -23,8 +26,49 @@ type PlayerLine = {
   breakdown?: Record<string, number>;
 };
 
-export function MatchBreakdown({ scores, teams, matchNames }: { scores: ScoreRow[]; teams: LeagueTeamDisplay[]; matchNames?: Record<string, string> }) {
+export function MatchBreakdown({
+  scores,
+  teams,
+  matchNames,
+  isHost,
+  leagueId,
+}: {
+  scores: ScoreRow[];
+  teams: LeagueTeamDisplay[];
+  matchNames?: Record<string, string>;
+  isHost?: boolean;
+  leagueId?: string | null;
+}) {
   const names = new Map(teams.map((t) => [t.id, t.team_name]));
+  const router = useRouter();
+  const { loading: rescoring, syncFromCricApi } = useCricApiMatchScoring();
+  const [rescoringMatchId, setRescoringMatchId] = useState<string | null>(null);
+
+  async function handleRescore(matchId: string, matchDate: string) {
+    if (!leagueId || rescoring) return;
+    setRescoringMatchId(matchId);
+    try {
+      const data = await syncFromCricApi({
+        leagueId,
+        matchId,
+        matchDate,
+        cricapiMatchId: matchId,
+      });
+      toast.success(`Re-scored · ${data?.performances_applied ?? 0} player rows applied`);
+      if (data?.unmatched_names?.length) {
+        toast.message(`Unmatched names: ${data.unmatched_names.slice(0, 5).join(", ")}${data.unmatched_names.length > 5 ? "…" : ""}`);
+      }
+      router.refresh();
+    } catch (e) {
+      if (e instanceof CricApiSyncError) {
+        toast.error(e.friendlyTitle, { description: e.friendlyMessage });
+      } else {
+        toast.error("Re-score failed", { description: e instanceof Error ? e.message : "Unknown error" });
+      }
+    } finally {
+      setRescoringMatchId(null);
+    }
+  }
 
   // Group by date, then by match within each date
   const byDate = new Map<string, Map<string, ScoreRow[]>>();
@@ -52,7 +96,19 @@ export function MatchBreakdown({ scores, teams, matchNames }: { scores: ScoreRow
                 <div className="mt-2 space-y-3">
                   {[...matches.entries()].map(([mid, rows]) => (
                     <div key={mid} className="space-y-1">
-                      <p className="text-xs text-neutral-500">{matchNames?.[mid] ?? `Match ${mid}`}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-neutral-500">{matchNames?.[mid] ?? `Match ${mid}`}</p>
+                        {isHost && leagueId ? (
+                          <button
+                            type="button"
+                            disabled={rescoring}
+                            className="rounded px-1.5 py-0.5 text-[10px] font-medium text-violet-400 hover:bg-violet-500/10 hover:text-violet-300 disabled:opacity-40"
+                            onClick={() => void handleRescore(mid, rows[0]?.match_date ?? date)}
+                          >
+                            {rescoringMatchId === mid ? "Re-scoring…" : "↻ Re-score"}
+                          </button>
+                        ) : null}
+                      </div>
                       <ul className="space-y-1 text-sm">
                         {rows.map((r) => (
                           <MatchScoreRow key={r.id} row={r} teamName={names.get(r.scoreboard_team_id) ?? r.scoreboard_team_id} />
