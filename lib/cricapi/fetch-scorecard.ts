@@ -118,9 +118,11 @@ function parseBatsmanRow(raw: Record<string, unknown>): { name: string; batting:
   // Avoid accidentally treating bowling aggregates as batting by requiring at least one batting stat key.
   const hasBattingKeys =
     "R" in raw ||
+    "r" in raw ||
     "runs" in raw ||
     "run" in raw ||
     "B" in raw ||
+    "b" in raw ||
     "balls" in raw ||
     "bf" in raw ||
     "ballsFaced" in raw ||
@@ -132,8 +134,8 @@ function parseBatsmanRow(raw: Record<string, unknown>): { name: string; batting:
     "6" in raw;
   if (!hasBattingKeys) return null;
 
-  const runs = num(raw.R ?? raw.runs ?? raw.run);
-  const balls = num(raw.B ?? raw.balls ?? raw.bf ?? raw.ballsFaced);
+  const runs = num(raw.R ?? raw.r ?? raw.runs ?? raw.run);
+  const balls = num(raw.B ?? raw.b ?? raw.balls ?? raw.bf ?? raw.ballsFaced);
   const fours = num(raw["4s"] ?? raw.fours ?? raw.four);
   const sixes = num(raw["6s"] ?? raw.sixes ?? raw.six);
   return {
@@ -201,9 +203,11 @@ export function extractPerformancesFromCricApiJson(data: unknown): CricApiMapped
       "batsmen" in o ||
       "batting" in o ||
       "R" in o ||
+      "r" in o ||
       "runs" in o ||
       "run" in o ||
       "B" in o ||
+      "b" in o ||
       "balls" in o ||
       "bf" in o ||
       "ballsFaced" in o ||
@@ -265,11 +269,11 @@ export function mergeBowlingFromCricApiJson(
         const key = normalizeName(name);
         const row = byName.get(key);
         if (!row) continue;
-        const overs = num(r.O ?? r.overs);
+        const overs = num(r.O ?? r.o ?? r.overs);
         const ballsBowled = Math.round(overs * 6) || num(r.balls ?? r.b);
-        const runsConceded = num(r.R ?? r.runs ?? r.rc);
-        const wickets = num(r.W ?? r.wickets ?? r.wk);
-        const maidens = num(r.M ?? r.maidens ?? r.maiden);
+        const runsConceded = num(r.R ?? r.r ?? r.runs ?? r.rc);
+        const wickets = num(r.W ?? r.w ?? r.wickets ?? r.wk);
+        const maidens = num(r.M ?? r.m ?? r.maidens ?? r.maiden);
         const dots = num(r["0s"] ?? r.dots ?? 0);
         const bowling: BowlingStats = {
           ballsBowled,
