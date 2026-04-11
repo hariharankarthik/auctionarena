@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
 
   const { data: league } = await supabase
     .from("fantasy_leagues")
-    .select("id, host_id, league_kind, sport_id, status")
+    .select("id, host_id, co_host_ids, league_kind, sport_id, status")
     .eq("id", team.league_id)
     .maybeSingle();
   if (!league || league.league_kind !== "private") {
@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Playing XI can have at most ${xiSize} players` }, { status: 400 });
   }
 
-  const isHost = league.host_id === user.id;
+  const coHostIds = (league.co_host_ids ?? []) as string[];
+  const isHost = league.host_id === user.id || coHostIds.includes(user.id);
   const isOwner = team.claimed_by === user.id;
   if (!isHost && !isOwner) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 

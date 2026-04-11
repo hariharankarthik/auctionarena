@@ -80,12 +80,13 @@ export async function POST(req: NextRequest) {
 
   const { data: league, error: lErr } = await supabase
     .from("fantasy_leagues")
-    .select("id, room_id, sport_id, host_id, league_kind")
+    .select("id, room_id, sport_id, host_id, co_host_ids, league_kind")
     .eq("id", league_id)
     .single();
 
   if (lErr || !league) return NextResponse.json({ error: "League not found" }, { status: 404 });
-  if (league.host_id !== user.id) {
+  const coHostIds = (league.co_host_ids ?? []) as string[];
+  if (league.host_id !== user.id && !coHostIds.includes(user.id)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
