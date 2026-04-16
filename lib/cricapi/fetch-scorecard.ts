@@ -316,8 +316,22 @@ export function mergeBowlingFromCricApiJson(
             ? str((nameCandidate as Record<string, unknown>).name ?? (nameCandidate as Record<string, unknown>).displayName ?? "")
             : "");
         if (!name) continue;
-        const row = resolveBowler(name);
-        if (!row) continue;
+        let row = resolveBowler(name);
+        // Bowler didn't bat → create a new bowling-only performance entry
+        if (!row) {
+          const newPerf: CricApiMappedPerformance = { playerName: name, stats: {} };
+          performances.push(newPerf);
+          const nk = normalizeName(name);
+          byName.set(nk, newPerf);
+          const parts = nk.split(" ");
+          const last = parts[parts.length - 1];
+          if (last) {
+            const arr = byLastName.get(last) ?? [];
+            arr.push(newPerf);
+            byLastName.set(last, arr);
+          }
+          row = newPerf;
+        }
         const overs = num(r.O ?? r.o ?? r.overs);
         const ballsBowled = Math.round(overs * 6) || num(r.balls ?? r.b);
         const runsConceded = num(r.R ?? r.r ?? r.runs ?? r.rc);
@@ -489,8 +503,22 @@ export function mergeFieldingFromCricApiJson(
   const fieldingCounts = new Map<string, { perf: CricApiMappedPerformance; catches: number; stumpings: number; runOutsDirect: number; runOutsThrower: number }>();
 
   function creditFielder(fielderName: string, type: FieldingCredit["type"]) {
-    const perf = resolveFielder(fielderName);
-    if (!perf) return;
+    let perf = resolveFielder(fielderName);
+    // Fielder didn't bat/bowl → create a new fielding-only performance entry
+    if (!perf) {
+      const newPerf: CricApiMappedPerformance = { playerName: fielderName, stats: {} };
+      performances.push(newPerf);
+      const nk = normalizeName(fielderName);
+      byName.set(nk, newPerf);
+      const parts = nk.split(" ");
+      const last = parts[parts.length - 1];
+      if (last) {
+        const arr = byLastName.get(last) ?? [];
+        arr.push(newPerf);
+        byLastName.set(last, arr);
+      }
+      perf = newPerf;
+    }
     const key = normalizeName(perf.playerName);
     const cur = fieldingCounts.get(key) ?? { perf, catches: 0, stumpings: 0, runOutsDirect: 0, runOutsThrower: 0 };
     if (type === "catch") cur.catches++;
