@@ -145,6 +145,43 @@ describe("formatWindowBoundary", () => {
   });
 });
 
+// DST correctness: the `ptDateAtHour` helper contains a nudge branch that
+// corrects for DST when the computed UTC candidate lands on the wrong PT hour.
+// These fixtures exercise both transitions so regressions in that branch fail loudly.
+describe("getWindowStatus — DST transitions", () => {
+  // Fall back: Sun 2025-11-02 02:00 PDT → 01:00 PST (gain an hour).
+  // Window on Sat Nov 1 2025 20:00 PDT is open; next close is Sun Nov 2 03:00 PT.
+  // At that instant the clock is already PST (UTC-8), so 03:00 PST = 11:00 UTC.
+  it("Sat 8 PM PDT (Nov 1 2025) → closesAt is Sun 3 AM PST (post fall-back)", () => {
+    // Sat 2025-11-01 20:00 PDT = 2025-11-02 03:00 UTC
+    const now = new Date(Date.UTC(2025, 10, 2, 3, 0, 0, 0));
+    const s = getWindowStatus(now);
+    expect(s.open).toBe(true);
+    expect(s.closesAt.getTime()).toBe(Date.UTC(2025, 10, 2, 11, 0, 0, 0));
+  });
+
+  // Spring forward: Sun 2026-03-08 02:00 PST jumps to 03:00 PDT (lose an hour).
+  // 03:00 PDT on that day = 10:00 UTC (the first valid 3 AM on the PT calendar day).
+  // Window on Sat Mar 7 2026 20:00 PST is open; next close is Sun Mar 8 03:00 PT.
+  it("Sat 8 PM PST (Mar 7 2026) → closesAt is Sun 3 AM PDT (post spring-forward)", () => {
+    // Sat 2026-03-07 20:00 PST = 2026-03-08 04:00 UTC
+    const now = new Date(Date.UTC(2026, 2, 8, 4, 0, 0, 0));
+    const s = getWindowStatus(now);
+    expect(s.open).toBe(true);
+    expect(s.closesAt.getTime()).toBe(Date.UTC(2026, 2, 8, 10, 0, 0, 0));
+  });
+
+  // Right after spring forward, at 4 AM PDT Sunday the window is closed
+  // (Sun weekend close = 3 AM), opensAt should be Sun 15:00 PDT = 22:00 UTC.
+  it("Sun 4 AM PDT (Mar 8 2026, just after spring-forward) → opensAt is 3 PM PDT same day", () => {
+    // Sun 2026-03-08 04:00 PDT = 2026-03-08 11:00 UTC
+    const now = new Date(Date.UTC(2026, 2, 8, 11, 0, 0, 0));
+    const s = getWindowStatus(now);
+    expect(s.open).toBe(false);
+    expect(s.opensAt.getTime()).toBe(Date.UTC(2026, 2, 8, 22, 0, 0, 0));
+  });
+});
+
 describe("constants", () => {
   it("exports correct window hours", () => {
     expect(WINDOW_OPEN_HOUR).toBe(15);
