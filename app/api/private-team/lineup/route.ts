@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSportConfig } from "@/lib/sports";
 import { validateXiComposition } from "@/lib/xi-composition";
+import { getWindowStatus } from "@/lib/lineup-lock";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -121,6 +122,23 @@ export async function POST(req: NextRequest) {
 
   if (captain_player_id && vice_captain_player_id && captain_player_id === vice_captain_player_id) {
     return NextResponse.json({ error: "Captain and vice-captain must be different players" }, { status: 400 });
+  }
+
+  // Lineup change time-window lock.
+  // Bypass for first-ever XI confirmation so users onboarding mid-match can still set their initial XI.
+  const isFirstXiSetup = !team.xi_confirmed_at;
+  if (!isFirstXiSetup) {
+    const windowStatus = getWindowStatus();
+    if (!windowStatus.open) {
+      return NextResponse.json(
+        {
+          error: "Lineup changes are locked while matches are in progress. Try again when the window reopens.",
+          code: "LINEUP_LOCKED",
+          opens_at: windowStatus.opensAt.toISOString(),
+        },
+        { status: 403 },
+      );
+    }
   }
 
   const updatePayload: Record<string, unknown> = {

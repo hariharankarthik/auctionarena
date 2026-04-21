@@ -1,38 +1,97 @@
 /**
- * Lineup change time-window utility.
+ * Lineup change time-window utility (day-aware).
  *
- * Changes to Playing XI are allowed between 3 PM and 6 AM Pacific Time.
- * Outside that window the lineup is locked (matches are in progress).
+ * Window is OPEN when users can change their Playing XI.
+ * Window is CLOSED while matches are in progress (lineup is locked).
  *
- * The window spans midnight:
- *   OPEN:   15:00 PT  →  05:59 PT (next day)
- *   CLOSED: 06:00 PT  →  14:59 PT
+ *   Mon–Fri: CLOSED 6 AM – 3 PM PT  →  OPEN 3 PM – 6 AM (next day) PT
+ *   Sat, Sun: CLOSED 3 AM – 3 PM PT  →  OPEN 3 PM – 3 AM (next day) PT
+ *
+ * The close hour varies by the PT day-of-week; the open hour is 3 PM PT daily.
  */
 
 const TZ = "America/Los_Angeles";
 export const WINDOW_OPEN_HOUR = 15; // 3 PM PT
-export const WINDOW_CLOSE_HOUR = 6; // 6 AM PT
+export const WEEKDAY_CLOSE_HOUR = 6; // 6 AM PT (Mon–Fri)
+export const WEEKEND_CLOSE_HOUR = 3; // 3 AM PT (Sat, Sun)
 
-/** Get the current hour (0-23) in Pacific time, DST-aware. */
-function pacificHour(now: Date = new Date()): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: TZ,
-    hour: "numeric",
-    hour12: false,
-  }).formatToParts(now);
-  const hourPart = parts.find((p) => p.type === "hour");
-  return parseInt(hourPart?.value ?? "0", 10);
+/** 0 = Sun, 6 = Sat. */
+function isWeekend(dow: number): boolean {
+  return dow === 0 || dow === 6;
 }
 
-/** True when lineup changes are allowed (3 PM – 6 AM Pacific). */
+/** Close hour for a given PT day-of-week (0=Sun..6=Sat). */
+export function getWindowCloseHour(dow: number): number {
+  return isWeekend(dow) ? WEEKEND_CLOSE_HOUR : WEEKDAY_CLOSE_HOUR;
+}
+
+type PtParts = {
+  year: string;
+  month: string;
+  day: string;
+  hour: number;
+  minute: number;
+  /** 0 = Sun .. 6 = Sat */
+  dow: number;
+};
+
+/** Parse `now` into PT date-time components + PT day-of-week, DST-aware. */
+function getPtParts(now: Date): PtParts {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    weekday: "short",
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(now).map((p) => [p.type, p.value]));
+  // Normalise the 24-hour edge: some runtimes return "24" for midnight.
+  const rawHour = parseInt(parts.hour ?? "0", 10);
+  const hour = rawHour === 24 ? 0 : rawHour;
+  const dowMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const dow = dowMap[parts.weekday ?? "Sun"] ?? 0;
+  return {
+    year: parts.year,
+    month: parts.month,
+    day: parts.day,
+    hour,
+    minute: parseInt(parts.minute ?? "0", 10),
+    dow,
+  };
+}
+
+/** True when lineup changes are allowed. */
 export function isLineupChangeWindowOpen(now: Date = new Date()): boolean {
-  const h = pacificHour(now);
-  // Open: 15-23 or 0-5  →  Closed: 6-14
-  return h >= WINDOW_OPEN_HOUR || h < WINDOW_CLOSE_HOUR;
+  const { hour, dow } = getPtParts(now);
+  const closeHour = getWindowCloseHour(dow);
+  return hour >= WINDOW_OPEN_HOUR || hour < closeHour;
 }
 
 /**
- * Returns the current window status and the next open/close boundaries.
+ * Build a Date at a target PT hour relative to `now`, DST-aware.
+ *
+ * `dayOffset` is the number of PT days forward (0 = today PT, 1 = tomorrow PT).
+ * We add `dayOffset * 24h + (targetHour - nowHour)h` to `now`, then snap via a
+ * round-trip through the formatter to correct any DST drift.
+ */
+function ptDateAtHour(now: Date, nowParts: PtParts, targetHour: number, dayOffset: number): Date {
+  const deltaHours = dayOffset * 24 + (targetHour - nowParts.hour);
+  const deltaMinutes = -nowParts.minute;
+  const candidate = new Date(now.getTime() + deltaHours * 3_600_000 + deltaMinutes * 60_000);
+
+  // DST edge: if the candidate's PT hour differs by ±1h, nudge back to the correct hour.
+  const check = getPtParts(candidate);
+  if (check.hour !== targetHour) {
+    return new Date(candidate.getTime() + (targetHour - check.hour) * 3_600_000);
+  }
+  return candidate;
+}
+
+/**
+ * Current window status plus the next open/close boundaries.
  *
  * `opensAt`  — next time the window opens  (only meaningful when currently closed)
  * `closesAt` — next time the window closes (only meaningful when currently open)
@@ -42,61 +101,48 @@ export function getWindowStatus(now: Date = new Date()): {
   opensAt: Date;
   closesAt: Date;
 } {
-  const open = isLineupChangeWindowOpen(now);
+  const parts = getPtParts(now);
+  const { hour, dow } = parts;
+  const closeHourToday = getWindowCloseHour(dow);
+  const open = hour >= WINDOW_OPEN_HOUR || hour < closeHourToday;
 
-  // Build a Date in Pacific by formatting and parsing components
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-  const parts = Object.fromEntries(fmt.formatToParts(now).map((p) => [p.type, p.value]));
-  const h = parseInt(parts.hour ?? "0", 10);
+  // opensAt: next 15:00 PT. Today if hour < 15, else tomorrow.
+  const opensAt =
+    hour < WINDOW_OPEN_HOUR
+      ? ptDateAtHour(now, parts, WINDOW_OPEN_HOUR, 0)
+      : ptDateAtHour(now, parts, WINDOW_OPEN_HOUR, 1);
 
-  // Helper: build a Date from Pacific-time components
-  const ptDate = (year: string, month: string, day: string, hour: number) => {
-    // Build an ISO-ish string and resolve via the formatter round-trip
-    const iso = `${year}-${month}-${day}T${String(hour).padStart(2, "0")}:00:00`;
-    // Create in UTC then adjust — simpler: use a known offset approach
-    // We rely on the fact that PT is UTC-8 (PST) or UTC-7 (PDT).
-    // Instead, just compute the delta from `now`.
-    const nowH = h;
-    let deltaHours = hour - nowH;
-    if (open) {
-      // closesAt: next WINDOW_CLOSE_HOUR
-      if (hour <= nowH) deltaHours += 24; // tomorrow
-    } else {
-      // opensAt: next WINDOW_OPEN_HOUR
-      if (hour <= nowH) deltaHours += 24;
-    }
-    const target = new Date(now.getTime() + deltaHours * 3600_000);
-    // Zero out minutes/seconds
-    target.setMinutes(0, 0, 0);
-    // Adjust for any partial-hour offset: snap to the exact hour boundary
-    const targetH = pacificHour(target);
-    if (targetH !== hour) {
-      // DST edge — nudge by 1h
-      target.setTime(target.getTime() + (hour - targetH) * 3600_000);
-    }
-    return target;
-  };
-
-  if (open) {
-    // Next close is at WINDOW_CLOSE_HOUR
-    const closesAt = ptDate(parts.year, parts.month, parts.day, WINDOW_CLOSE_HOUR);
-    // Next open is at WINDOW_OPEN_HOUR (could be today if before 3 PM, else tomorrow)
-    const opensAt = ptDate(parts.year, parts.month, parts.day, WINDOW_OPEN_HOUR);
-    return { open, opensAt, closesAt };
+  // closesAt: next close hour.
+  // If currently open (hour >= 15), close happens tomorrow — use tomorrow's DOW.
+  // If hour < closeHourToday, close happens today.
+  // (When closed mid-day, "next close" is tomorrow's close — after reopen at 15:00.)
+  let closesAt: Date;
+  if (hour < closeHourToday) {
+    closesAt = ptDateAtHour(now, parts, closeHourToday, 0);
   } else {
-    // Next open is at WINDOW_OPEN_HOUR today
-    const opensAt = ptDate(parts.year, parts.month, parts.day, WINDOW_OPEN_HOUR);
-    // Next close is at WINDOW_CLOSE_HOUR tomorrow
-    const closesAt = ptDate(parts.year, parts.month, parts.day, WINDOW_CLOSE_HOUR);
-    return { open, opensAt, closesAt };
+    const tomorrowDow = (dow + 1) % 7;
+    const closeHourTomorrow = getWindowCloseHour(tomorrowDow);
+    closesAt = ptDateAtHour(now, parts, closeHourTomorrow, 1);
   }
+
+  return { open, opensAt, closesAt };
+}
+
+/** Format a Date in PT / ET / IST for UI display. */
+export function formatWindowBoundary(d: Date): { pt: string; et: string; ist: string } {
+  const fmt = (tz: string) =>
+    d.toLocaleString("en-US", {
+      timeZone: tz,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  return {
+    pt: fmt("America/Los_Angeles"),
+    et: fmt("America/New_York"),
+    ist: fmt("Asia/Kolkata"),
+  };
 }

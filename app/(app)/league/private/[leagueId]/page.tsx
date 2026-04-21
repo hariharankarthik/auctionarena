@@ -380,6 +380,7 @@ export default async function PrivateLeaguePage({ params }: { params: Promise<{ 
                               initialXi={Array.isArray(t.starting_xi_player_ids) ? (t.starting_xi_player_ids as string[]) : []}
                               captainPlayerId={t.captain_player_id as string | null}
                               viceCaptainPlayerId={t.vice_captain_player_id as string | null}
+                              xiConfirmed={xiConfirmed}
                             />
                           ) : isMine && league.status === "draft" ? (
                             <p className="mt-4 text-sm text-neutral-400">Set your Playing XI once the host starts the league.</p>

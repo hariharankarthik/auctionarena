@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PlayerMeta } from "@/components/player/PlayerMeta";
 import { validateXiComposition } from "@/lib/xi-composition";
+import { getWindowStatus, formatWindowBoundary } from "@/lib/lineup-lock";
 
 export type PrivateTeamPlayer = {
   playerId: string;
@@ -22,6 +23,7 @@ export function PrivateLineupPanel({
   initialXi,
   captainPlayerId,
   viceCaptainPlayerId,
+  xiConfirmed,
 }: {
   privateTeamId: string;
   players: PrivateTeamPlayer[];
@@ -30,11 +32,25 @@ export function PrivateLineupPanel({
   initialXi: string[];
   captainPlayerId: string | null;
   viceCaptainPlayerId: string | null;
+  /** True once the team has confirmed their XI at least once. While false, lock is bypassed. */
+  xiConfirmed: boolean;
 }) {
   const [xi, setXi] = useState<Set<string>>(() => new Set(initialXi));
   const [c, setC] = useState<string | null>(captainPlayerId);
   const [vc, setVc] = useState<string | null>(viceCaptainPlayerId);
   const [saving, setSaving] = useState(false);
+  const [windowState, setWindowState] = useState(() => getWindowStatus());
+
+  // Refresh window status every 30s so the UI transitions without a reload.
+  useEffect(() => {
+    const id = setInterval(() => setWindowState(getWindowStatus()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Lock is only enforced after the first XI has been confirmed.
+  const locked = xiConfirmed && !windowState.open;
+  const opensAtFmt = useMemo(() => formatWindowBoundary(windowState.opensAt), [windowState.opensAt]);
+  const closesAtFmt = useMemo(() => formatWindowBoundary(windowState.closesAt), [windowState.closesAt]);
 
   useEffect(() => {
     const squadSize = players.length;
@@ -81,9 +97,13 @@ export function PrivateLineupPanel({
     return { wk, bat, bowl, all };
   }, [players, xi]);
 
-  const canSave = canSetFullXi && xiComplete && hasCaptainAndVc && compositionResult.valid;
+  const canSave = canSetFullXi && xiComplete && hasCaptainAndVc && compositionResult.valid && !locked;
 
   function toggle(pid: string) {
+    if (locked) {
+      toast.error("Lineup is locked. Matches are in progress.");
+      return;
+    }
     setXi((prev) => {
       const next = new Set(prev);
       if (next.has(pid)) {
@@ -111,16 +131,22 @@ export function PrivateLineupPanel({
   }
 
   function setCaptain(pid: string) {
+    if (locked) return;
     setC(pid);
     if (vc === pid) setVc(null);
   }
 
   function setViceCaptain(pid: string) {
+    if (locked) return;
     setVc(pid);
     if (c === pid) setC(null);
   }
 
   async function save() {
+    if (locked) {
+      toast.error(`Lineup locked. Reopens ${opensAtFmt.pt} PT`);
+      return;
+    }
     setSaving(true);
     try {
       const xiArr = [...xi];
@@ -139,8 +165,14 @@ export function PrivateLineupPanel({
           vice_captain_player_id: vc,
         }),
       });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error || "Save failed");
+      const data = (await res.json()) as { error?: string; code?: string; opens_at?: string };
+      if (!res.ok) {
+        if (data.code === "LINEUP_LOCKED" && data.opens_at) {
+          const f = formatWindowBoundary(new Date(data.opens_at));
+          throw new Error(`Lineup locked. Reopens ${f.pt} PT · ${f.et} ET · ${f.ist} IST`);
+        }
+        throw new Error(data.error || "Save failed");
+      }
       toast.success("Lineup saved");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
@@ -190,12 +222,29 @@ export function PrivateLineupPanel({
         </div>
       </div>
 
+      {locked ? (
+        <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+          <p className="font-semibold">🔒 Lineup locked — matches are in progress</p>
+          <p className="mt-1 text-amber-200/80">
+            Changes reopen <span className="font-medium text-amber-100">{opensAtFmt.pt} PT</span>
+            {" · "}<span className="text-amber-200/70">{opensAtFmt.et} ET</span>
+            {" · "}<span className="text-amber-200/70">{opensAtFmt.ist} IST</span>
+          </p>
+        </div>
+      ) : xiConfirmed ? (
+        <div className="border-b border-neutral-800/80 px-4 py-2 text-xs text-neutral-400">
+          Changes open until <span className="font-medium text-neutral-200">{closesAtFmt.pt} PT</span>
+          {" · "}<span className="text-neutral-500">{closesAtFmt.et} ET</span>
+          {" · "}<span className="text-neutral-500">{closesAtFmt.ist} IST</span>
+        </div>
+      ) : null}
+
       <ul className="max-h-72 space-y-2 overflow-y-auto p-4">
         {players.map((p) => {
           const on = xi.has(p.playerId);
           const isC = c === p.playerId;
           const isVC = vc === p.playerId;
-          const disablePick = !canSetFullXi && !on;
+          const disablePick = (!canSetFullXi && !on) || locked;
           return (
             <li
               key={p.playerId}
@@ -221,7 +270,8 @@ export function PrivateLineupPanel({
                   <button
                     type="button"
                     onClick={() => setCaptain(p.playerId)}
-                    className={`cursor-pointer rounded-full px-2 py-1 font-semibold ring-1 transition-colors ${
+                    disabled={locked}
+                    className={`cursor-pointer rounded-full px-2 py-1 font-semibold ring-1 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                       isC ? "bg-blue-500/15 text-blue-200 ring-blue-500/30" : "bg-neutral-900/40 text-neutral-400 ring-neutral-700/80 hover:text-neutral-200"
                     }`}
                   >
@@ -230,7 +280,8 @@ export function PrivateLineupPanel({
                   <button
                     type="button"
                     onClick={() => setViceCaptain(p.playerId)}
-                    className={`cursor-pointer rounded-full px-2 py-1 font-semibold ring-1 transition-colors ${
+                    disabled={locked}
+                    className={`cursor-pointer rounded-full px-2 py-1 font-semibold ring-1 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                       isVC ? "bg-sky-500/15 text-sky-200 ring-sky-500/30" : "bg-neutral-900/40 text-neutral-400 ring-neutral-700/80 hover:text-neutral-200"
                     }`}
                   >
@@ -254,7 +305,9 @@ export function PrivateLineupPanel({
           {saving ? "Saving…" : "Save lineup"}
         </Button>
         <span className="text-xs text-neutral-500">
-          {xi.size === xiSize && !compositionResult.valid ? (
+          {locked ? (
+            <span className="text-amber-300">Locked — reopens {opensAtFmt.pt} PT</span>
+          ) : xi.size === xiSize && !compositionResult.valid ? (
             <span className="text-red-300">{compositionResult.errors.join("; ")}</span>
           ) : xi.size === xiSize && !hasCaptainAndVc ? (
             <span className="text-amber-300">Select Captain &amp; Vice-Captain to save</span>
