@@ -63,8 +63,25 @@ function getPtParts(now: Date): PtParts {
   };
 }
 
+/**
+ * Returns true if the lineup-lock override flag is enabled.
+ *
+ * The flag is read from `NEXT_PUBLIC_LINEUP_LOCK_OVERRIDE` so it works on
+ * both the server and the browser. Any value matching /^(1|true|yes|on)$/i
+ * disables the lock entirely (window is always "open").
+ *
+ * Intended for rare host-initiated exceptions (e.g., postponed match days).
+ * Unset the env var and redeploy to restore normal behaviour.
+ */
+export function isLineupLockOverrideEnabled(): boolean {
+  const raw = process.env.NEXT_PUBLIC_LINEUP_LOCK_OVERRIDE;
+  if (!raw) return false;
+  return /^(1|true|yes|on)$/i.test(raw.trim());
+}
+
 /** True when lineup changes are allowed. */
 export function isLineupChangeWindowOpen(now: Date = new Date()): boolean {
+  if (isLineupLockOverrideEnabled()) return true;
   const { hour, dow } = getPtParts(now);
   const closeHour = getWindowCloseHour(dow);
   return hour >= WINDOW_OPEN_HOUR || hour < closeHour;
@@ -104,7 +121,8 @@ export function getWindowStatus(now: Date = new Date()): {
   const parts = getPtParts(now);
   const { hour, dow } = parts;
   const closeHourToday = getWindowCloseHour(dow);
-  const open = hour >= WINDOW_OPEN_HOUR || hour < closeHourToday;
+  const overrideOn = isLineupLockOverrideEnabled();
+  const open = overrideOn || hour >= WINDOW_OPEN_HOUR || hour < closeHourToday;
 
   // opensAt: next 15:00 PT. Today if hour < 15, else tomorrow.
   const opensAt =
