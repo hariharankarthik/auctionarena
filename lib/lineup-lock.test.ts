@@ -38,7 +38,10 @@ describe("getWindowCloseHour", () => {
 });
 
 describe("isLineupChangeWindowOpen — weekdays", () => {
-  it("returns true at 3 PM PT Tue (window opens)", () => {
+  it("returns true at 1 PM PT Tue (window opens)", () => {
+    expect(isLineupChangeWindowOpen(makePt(2025, 7, 15, 13))).toBe(true);
+  });
+  it("returns true at 3 PM PT Tue (still inside open window)", () => {
     expect(isLineupChangeWindowOpen(makePt(2025, 7, 15, 15))).toBe(true);
   });
   it("returns true at 11 PM PT Tue", () => {
@@ -56,8 +59,8 @@ describe("isLineupChangeWindowOpen — weekdays", () => {
   it("returns false at 10 AM PT Tue", () => {
     expect(isLineupChangeWindowOpen(makePt(2025, 7, 15, 10))).toBe(false);
   });
-  it("returns false at 2:59 PM PT Tue", () => {
-    expect(isLineupChangeWindowOpen(makePt(2025, 7, 15, 14, 59))).toBe(false);
+  it("returns false at 12:59 PM PT Tue", () => {
+    expect(isLineupChangeWindowOpen(makePt(2025, 7, 15, 12, 59))).toBe(false);
   });
 });
 
@@ -74,8 +77,8 @@ describe("isLineupChangeWindowOpen — weekends", () => {
   it("returns false at 5 AM PT Sunday", () => {
     expect(isLineupChangeWindowOpen(makePt(2025, 7, 13, 5))).toBe(false);
   });
-  it("returns true at 3 PM PT Sunday (reopen)", () => {
-    expect(isLineupChangeWindowOpen(makePt(2025, 7, 13, 15))).toBe(true);
+  it("returns true at 1 PM PT Sunday (reopen)", () => {
+    expect(isLineupChangeWindowOpen(makePt(2025, 7, 13, 13))).toBe(true);
   });
 });
 
@@ -107,12 +110,12 @@ describe("getWindowStatus", () => {
     expect(s.closesAt.getTime()).toBe(Date.UTC(2025, 6, 12, 10, 0, 0, 0));
   });
 
-  it("Saturday 4 AM PT (closed) → opensAt is Saturday 3 PM PT same day", () => {
+  it("Saturday 4 AM PT (closed) → opensAt is Saturday 1 PM PT same day", () => {
     const now = makePt(2025, 7, 12, 4);
     const s = getWindowStatus(now);
     expect(s.open).toBe(false);
-    // Saturday 3 PM PT = 2025-07-12 22:00 UTC
-    expect(s.opensAt.getTime()).toBe(Date.UTC(2025, 6, 12, 22, 0, 0, 0));
+    // Saturday 1 PM PT = 2025-07-12 20:00 UTC
+    expect(s.opensAt.getTime()).toBe(Date.UTC(2025, 6, 12, 20, 0, 0, 0));
   });
 
   it("Saturday 8 PM PT → closesAt is Sunday 3 AM PT (weekend close)", () => {
@@ -172,19 +175,19 @@ describe("getWindowStatus — DST transitions", () => {
   });
 
   // Right after spring forward, at 4 AM PDT Sunday the window is closed
-  // (Sun weekend close = 3 AM), opensAt should be Sun 15:00 PDT = 22:00 UTC.
-  it("Sun 4 AM PDT (Mar 8 2026, just after spring-forward) → opensAt is 3 PM PDT same day", () => {
+  // (Sun weekend close = 3 AM), opensAt should be Sun 13:00 PDT = 20:00 UTC.
+  it("Sun 4 AM PDT (Mar 8 2026, just after spring-forward) → opensAt is 1 PM PDT same day", () => {
     // Sun 2026-03-08 04:00 PDT = 2026-03-08 11:00 UTC
     const now = new Date(Date.UTC(2026, 2, 8, 11, 0, 0, 0));
     const s = getWindowStatus(now);
     expect(s.open).toBe(false);
-    expect(s.opensAt.getTime()).toBe(Date.UTC(2026, 2, 8, 22, 0, 0, 0));
+    expect(s.opensAt.getTime()).toBe(Date.UTC(2026, 2, 8, 20, 0, 0, 0));
   });
 });
 
 describe("constants", () => {
   it("exports correct window hours", () => {
-    expect(WINDOW_OPEN_HOUR).toBe(15);
+    expect(WINDOW_OPEN_HOUR).toBe(13);
     expect(WEEKDAY_CLOSE_HOUR).toBe(6);
     expect(WEEKEND_CLOSE_HOUR).toBe(3);
   });

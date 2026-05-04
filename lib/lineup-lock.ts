@@ -4,14 +4,14 @@
  * Window is OPEN when users can change their Playing XI.
  * Window is CLOSED while matches are in progress (lineup is locked).
  *
- *   Mon–Fri: CLOSED 6 AM – 3 PM PT  →  OPEN 3 PM – 6 AM (next day) PT
- *   Sat, Sun: CLOSED 3 AM – 3 PM PT  →  OPEN 3 PM – 3 AM (next day) PT
+ *   Mon–Fri: CLOSED 6 AM – 1 PM PT  →  OPEN 1 PM – 6 AM (next day) PT
+ *   Sat, Sun: CLOSED 3 AM – 1 PM PT  →  OPEN 1 PM – 3 AM (next day) PT
  *
- * The close hour varies by the PT day-of-week; the open hour is 3 PM PT daily.
+ * The close hour varies by the PT day-of-week; the open hour is 1 PM PT daily.
  */
 
 const TZ = "America/Los_Angeles";
-export const WINDOW_OPEN_HOUR = 15; // 3 PM PT
+export const WINDOW_OPEN_HOUR = 13; // 1 PM PT
 export const WEEKDAY_CLOSE_HOUR = 6; // 6 AM PT (Mon–Fri)
 export const WEEKEND_CLOSE_HOUR = 3; // 3 AM PT (Sat, Sun)
 
